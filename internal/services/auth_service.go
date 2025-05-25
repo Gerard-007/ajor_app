@@ -3,21 +3,34 @@ package services
 import (
 	"context"
 	"errors"
+	"time"
+
 	// "time"
 
 	"github.com/Gerard-007/ajor_app/internal/models"
 	"github.com/Gerard-007/ajor_app/internal/repository"
+	"github.com/Gerard-007/ajor_app/pkg/utils"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/crypto/bcrypt"
 )
 
-func RegisterUser(db *mongo.Collection, user *models.User) error {
-	// Check if the email already exists
+func RegisterUser(db *mongo.Database, user *models.User) error {
+	usersCollection := db.Collection("users")
+
+	// Check if email or username already exists
 	var existingUser models.User
-	err := db.FindOne(context.TODO(), bson.M{"email": user.Email}).Decode(&existingUser)
+	err := usersCollection.FindOne(context.TODO(), bson.M{"email": user.Email}).Decode(&existingUser)
 	if err == nil {
 		return errors.New("email already exists")
+	}
+	if err != mongo.ErrNoDocuments {
+		return err
+	}
+	err = usersCollection.FindOne(context.TODO(), bson.M{"username": user.Username}).Decode(&existingUser)
+	if err == nil {
+		return errors.New("username already exists")
 	}
 	if err != mongo.ErrNoDocuments {
 		return err
@@ -29,26 +42,72 @@ func RegisterUser(db *mongo.Collection, user *models.User) error {
 		return err
 	}
 	user.Password = string(hashedPassword)
-	return repository.CreateUser(db, user)
+	user.CreatedAt = time.Now()
+	user.UpdatedAt = time.Now()
+	user.Verified = false
+	user.IsAdmin = false
+
+	// Start a transaction
+	session, err := db.Client().StartSession()
+	if err != nil {
+		return err
+	}
+	defer session.EndSession(context.TODO())
+
+	err = mongo.WithSession(context.TODO(), session, func(sc mongo.SessionContext) error {
+		// Create user
+		userResult, err := usersCollection.InsertOne(sc, user)
+		if err != nil {
+			return err
+		}
+
+		// Create profile
+		profile := models.Profile{
+			UserID:     userResult.InsertedID.(primitive.ObjectID),
+			Bio:        "", // Default empty, editable later
+			Location:   "",
+			ProfilePic: "", // Could set a default URL
+			CreatedAt:  time.Now(),
+			UpdatedAt:  time.Now(),
+		}
+		err = repository.CreateProfile(db, &profile)
+		if err != nil {
+			return err
+		}
+
+		return session.CommitTransaction(sc)
+	})
+
+	if err != nil {
+		session.AbortTransaction(context.TODO())
+		return err
+	}
+
+	return nil
 }
 
 
-func LoginUser(db *mongo.Collection, email, password string) (*models.User, error) {
+func LoginUser(db *mongo.Collection, email, password string) (string, error) {
 	// Find the user by email
-	var user models.User
-	err := db.FindOne(context.TODO(), bson.M{"email": email}).Decode(&user)
-	if err == mongo.ErrNoDocuments {
-        return nil, errors.New("invalid email or password")
-    }
-    if err != nil {
-        return nil, err
-    }
-
-	// Compare the password with the hashed password
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+	user, err := repository.GetUserByEmail(db, email)
 	if err != nil {
-		return nil, errors.New("invalid email or password")
+		if err == mongo.ErrNoDocuments {
+			return "", errors.New("user not found")
+		}
+		return "", err
 	}
 
-	return &user, nil
+	// Compare the provided password with the stored hashed password
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+	if err != nil {
+		return "", errors.New("invalid credentials")
+	}
+
+	// Generate JWT token
+	token, err := utils.GenerateToken(user.Username, user.Email, user.ID, user.IsAdmin)
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
 }

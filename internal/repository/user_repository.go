@@ -1,24 +1,32 @@
 package repository
 
 import (
-	"context"
-
-	"github.com/Gerard-007/ajor_app/internal/models"
-	"go.mongodb.org/mongo-driver/mongo"
+    "context"
+    "github.com/Gerard-007/ajor_app/internal/models"
+    "go.mongodb.org/mongo-driver/bson"
+    "go.mongodb.org/mongo-driver/mongo"
+    "go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func CreateUser(db *mongo.Collection, user *models.User) error {
-	// Implement the logic to create a user in the database
-	_, err := db.InsertOne(context.TODO(), user)
-	return err
+    _, err := db.InsertOne(context.TODO(), user)
+    return err
 }
 
-func GetUserByID(db *mongo.Collection, id int) (*models.User, error) {
-	// Get a user by ID from the database
-	var user models.User
-	err := db.FindOne(context.TODO(), map[string]any{"_id": id}).Decode(&user)
-	if err != nil {
-		return nil, err
-	}
-	return &user, nil
+func GetUserByID(db *mongo.Collection, id primitive.ObjectID) (*models.User, error) {
+    var user models.User
+    err := db.FindOne(context.TODO(), bson.M{"_id": id}).Decode(&user)
+    if err != nil {
+        return nil, err
+    }
+    return &user, nil
+}
+
+func GetUserByEmail(db *mongo.Collection, email string) (*models.User, error) {
+    var user models.User
+    err := db.FindOne(context.TODO(), bson.M{"email": email}).Decode(&user)
+    if err != nil {
+        return nil, err
+    }
+    return &user, nil
 }

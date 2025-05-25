@@ -2,17 +2,42 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/Gerard-007/ajor_app/internal/models"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func GetUserProfile(db *mongo.Collection, userId int) (*models.Profile, error) {
-	// Get user profile by user ID
+func CreateProfile(db *mongo.Database, profile *models.Profile) error {
+	collection := db.Collection("profiles")
+	profile.CreatedAt = time.Now()
+	profile.UpdatedAt = time.Now()
+	_, err := collection.InsertOne(context.TODO(), profile)
+	return err
+}
+
+func GetUserProfile(collection *mongo.Collection, userID primitive.ObjectID) (*models.Profile, error) {
 	var profile models.Profile
-	err := db.FindOne(context.TODO(), map[string]any{"user_id": userId}).Decode(&profile)
+	err := collection.FindOne(context.TODO(), bson.M{"user_id": userID}).Decode(&profile)
 	if err != nil {
 		return nil, err
 	}
 	return &profile, nil
+}
+
+func UpdateUserProfile(collection *mongo.Collection, userID primitive.ObjectID, profileUpdate *models.Profile) error {
+	filter := bson.M{"user_id": userID}
+	update := bson.M{
+		"$set": bson.M{
+			"bio":         profileUpdate.Bio,
+			"location":    profileUpdate.Location,
+			"profile_pic": profileUpdate.ProfilePic,
+			"updated_at":  time.Now(),
+		},
+	}
+	_, err := collection.UpdateOne(context.TODO(), filter, update, options.Update().SetUpsert(true))
+	return err
 }

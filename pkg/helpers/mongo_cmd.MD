@@ -1,6 +1,6 @@
 MongoDB Help for ajor_app
 This guide provides essential MongoDB commands to interact with the ajor_app_db database used by the ajor_app project. These commands are executed in the MongoDB shell (mongosh) after connecting to your Dockerized MongoDB instance (mongo:latest) using:
-docker exec -it ajor-mongo mongosh -u admin -p password
+`docker exec -it ajor-mongo mongosh -u admin -p password`
 
 Prerequisites
 
@@ -11,35 +11,35 @@ The ajor_app_db database and collections (users, profiles) are populated via you
 Accessing the MongoDB Shell
 
 Connect to the MongoDB container:
-docker exec -it ajor-mongo mongosh -u admin -p password
+`docker exec -it ajor-mongo mongosh -u admin -p password`
 
 
 Switch to the ajor_app_db database:
-use ajor_app_db
+`use ajor_app_db`
 
 
 
 Common Commands
 1. List Available Collections
 View all collections in the ajor_app_db database (e.g., users, profiles):
-show collections
+`show collections`
 
 Expected Output:
-profiles
-users
+`profiles`
+`users`
 
 Note: If no collections appear, no data has been inserted yet. Use your API (e.g., POST /api/register) to add data.
 2. View All Data in a Collection
 Retrieve all documents in a collection.
 
 Users Collection:
-db.users.find()
+`db.users.find()`
 
 For better readability:
-db.users.find().pretty()
+`db.users.find().pretty()`
 
 Example Output:
-{
+```{
   "_id": UUID("550e8400-e29b-41d4-a716-446655440000"),
   "email": "gerard@example.com",
   "password": "$2a$10$...",
@@ -49,14 +49,14 @@ Example Output:
   "is_admin": true,
   "created_at": ISODate("2025-05-22T15:00:00Z"),
   "updated_at": ISODate("2025-05-22T15:00:00Z")
-}
+}```
 
 
 Profiles Collection:
-db.profiles.find().pretty()
+`db.profiles.find().pretty()`
 
 Example Output:
-{
+```{
   "_id": UUID("550e8400-e29b-41d4-a716-446655440001"),
   "user_id": UUID("550e8400-e29b-41d4-a716-446655440000"),
   "bio": "",
@@ -67,8 +67,7 @@ Example Output:
   "cover_pic": "",
   "created_at": ISODate("2025-05-22T15:00:00Z"),
   "updated_at": ISODate("2025-05-22T15:00:00Z")
-}
-
+}```
 
 
 3. Count Documents
@@ -117,11 +116,11 @@ Remove a specific document from a collection:
 db.users.deleteOne({ email: "gerard@example.com" })
 
 Example Output:
-{ "acknowledged": true, "deletedCount": 1 }
+`{ "acknowledged": true, "deletedCount": 1 }`
 
 8. Drop a Collection
 Delete an entire collection (use with caution):
-db.users.drop()
+`db.users.drop()`
 
 Example Output:
 true

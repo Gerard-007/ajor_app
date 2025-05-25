@@ -19,7 +19,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	
+
 	server := gin.Default()
 	routes.InitRoutes(server, db)
 	port := os.Getenv("PORT")

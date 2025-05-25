@@ -11,35 +11,35 @@ import (
 
 func LoginHandler(db *mongo.Collection) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Implement login logic here
-		// var user models.User
-	}
-}
-
-func RegisterHandler(db *mongo.Collection) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// Implement registration logic here
 		var user models.User
 		if err := c.ShouldBindJSON(&user); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 			return
 		}
 
-		err := services.RegisterUser(db, &user)
+		token, err := services.LoginUser(db, user.Email, user.Password)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error creating user"})
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 			return
 		}
 
-		c.JSON(http.StatusCreated, gin.H{"status": "success", "message": "User created successfully", "user": user})
+		c.JSON(http.StatusOK, gin.H{"token": token})
+	}
+}
 
-		// Example: Insert user directly into MongoDB collection
-		// _, err := db.InsertOne(c, user)
-		// if err != nil {
-		// 	c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		// 	return
-		// }
+func RegisterHandler(db *mongo.Database) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var user models.User
+		if err := c.ShouldBindJSON(&user); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+			return
+		}
 
-		// c.JSON(http.StatusCreated, gin.H{"status": "success", "user": user})
+		if err := services.RegisterUser(db, &user); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusCreated, gin.H{"message": "User registered successfully"})
 	}
 }
