@@ -11,10 +11,12 @@ func InitRoutes(router *gin.Engine, db *mongo.Database) {
 	usersCollection := db.Collection("users")
 	// Authentication routes
 	router.POST("/login", handlers.LoginHandler(usersCollection))
-	router.POST("/register", handlers.RegisterHandler(db)) // Pass db for access to both collections
+	router.POST("/register", handlers.RegisterHandler(db))
+	router.POST("/logout", handlers.LogoutHandler(db))
+
 	// User routes
 	authenticated := router.Group("/")
-	authenticated.Use(auth.AuthMiddleware())
+	authenticated.Use(auth.AuthMiddleware(db))
 	authenticated.GET("/users/:id", handlers.GetUserByIdHandler(usersCollection))
 	authenticated.GET("/profile/:id", handlers.GetUserProfileHandler(db))
 	authenticated.PUT("/profile/:id", handlers.UpdateUserProfileHandler(db))

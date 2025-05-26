@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/Gerard-007/ajor_app/internal/models"
 	"github.com/Gerard-007/ajor_app/internal/services"
@@ -13,27 +12,6 @@ import (
 
 func GetUserProfileHandler(db *mongo.Database) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		userID, err := strconv.Atoi(c.Param("id"))
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "Invalid user ID",
-			})
-			return
-		}
-		profile, err := services.GetUserProfile(db, userID)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "Failed to fetch user profile",
-			})
-			return
-		}
-		c.JSON(http.StatusOK, profile)
-	}
-}
-
-
-func UpdateUserProfileHandler(db *mongo.Database) gin.HandlerFunc {
-	return func(c *gin.Context) {
 		userIDStr := c.Param("id")
 		userID, err := primitive.ObjectIDFromHex(userIDStr)
 		if err != nil {
@@ -41,47 +19,67 @@ func UpdateUserProfileHandler(db *mongo.Database) gin.HandlerFunc {
 			return
 		}
 
-		// // Get authenticated user from context (set by AuthMiddleware)
-		// authUser, exists := c.Get("user")
-		// if !exists {
-		// 	c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-		// 	return
-		// }
-		// authUserClaims, ok := authUser.(*utils.Claims)
-		// if !ok {
-		// 	c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user data"})
-		// 	return
-		// }
-
-		// // Ensure user can only update their own profile
-		// if authUserClaims.UserID != userID.Hex() {
-		// 	c.JSON(http.StatusForbidden, gin.H{"error": "Cannot update another user's profile"})
-		// 	return
-		// }
-
-		var profileUpdate struct {
-			Bio        string `json:"bio"`
-			Location   string `json:"location"`
-			ProfilePic string `json:"profile_pic"`
-		}
-		if err := c.ShouldBindJSON(&profileUpdate); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-			return
-		}
-
-		profile := models.Profile{
-			UserID:     userID,
-			Bio:        profileUpdate.Bio,
-			Location:   profileUpdate.Location,
-			ProfilePic: profileUpdate.ProfilePic,
-		}
-
-		err = services.UpdateUserProfile(db, &profile)
+		profile, err := services.GetUserProfile(db, userID)
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
 				c.JSON(http.StatusNotFound, gin.H{"error": "Profile not found"})
 				return
 			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user profile"})
+			return
+		}
+		c.JSON(http.StatusOK, profile)
+	}
+}
+
+func UpdateUserProfileHandler(db *mongo.Database) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Parse user ID from URL
+		userIDStr := c.Param("id")
+		userID, err := primitive.ObjectIDFromHex(userIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+			return
+		}
+
+		// Verify authenticated user matches the user ID
+		authUserIDStr, exists := c.Get("userID")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+			return
+		}
+		authUserID, err := primitive.ObjectIDFromHex(authUserIDStr.(string))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid authenticated user ID"})
+			return
+		}
+
+		// Check if user is admin
+		isAdmin, exists := c.Get("isAdmin")
+		if !exists {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Admin status not found"})
+			return
+		}
+
+		// Non-admins can only update their own profile
+		if !isAdmin.(bool) && authUserID != userID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized to update this profile"})
+			return
+		}
+
+		// Bind JSON input
+		var profileUpdate models.Profile
+		if err := c.ShouldBindJSON(&profileUpdate); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+
+		// Set UserID for the update
+		profileUpdate.UserID = userID
+
+		// Update profile
+		err = services.UpdateUserProfile(db, userID, &profileUpdate)
+		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profile"})
 			return
 		}

@@ -10,3 +10,7 @@ import (
 func GetUserByID(db *mongo.Collection, id primitive.ObjectID) (*models.User, error) {
 	return repository.GetUserByID(db, id)
 }
+
+func DeleteUser(db *mongo.Database, userID primitive.ObjectID) error {
+	return repository.DeleteUserAndProfile(db, userID)
+}

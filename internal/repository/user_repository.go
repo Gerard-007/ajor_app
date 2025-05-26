@@ -30,3 +30,35 @@ func GetUserByEmail(db *mongo.Collection, email string) (*models.User, error) {
     }
     return &user, nil
 }
+
+func DeleteUserAndProfile(db *mongo.Database, userID primitive.ObjectID) error {
+	session, err := db.Client().StartSession()
+	if err != nil {
+		return err
+	}
+	defer session.EndSession(context.TODO())
+
+	err = mongo.WithSession(context.TODO(), session, func(sc mongo.SessionContext) error {
+		// Delete user
+		usersCollection := db.Collection("users")
+		_, err := usersCollection.DeleteOne(sc, bson.M{"_id": userID})
+		if err != nil {
+			return err
+		}
+
+		// Delete profile
+		profilesCollection := db.Collection("profiles")
+		_, err = profilesCollection.DeleteOne(sc, bson.M{"user_id": userID})
+		if err != nil {
+			return err
+		}
+
+		return session.CommitTransaction(sc)
+	})
+
+	if err != nil {
+		session.AbortTransaction(context.TODO())
+		return err
+	}
+	return nil
+}
