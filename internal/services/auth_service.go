@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"log"
 	"time"
 
 	// "time"
@@ -19,16 +20,16 @@ import (
 func RegisterUser(db *mongo.Database, user *models.User) error {
 	usersCollection := db.Collection("users")
 
-	// Check if email or username already exists
+	// Check if email or username exists
 	var existingUser models.User
-	err := usersCollection.FindOne(context.TODO(), bson.M{"email": user.Email}).Decode(&existingUser)
+	err := usersCollection.FindOne(context.Background(), bson.M{"email": user.Email}).Decode(&existingUser)
 	if err == nil {
 		return errors.New("email already exists")
 	}
 	if err != mongo.ErrNoDocuments {
 		return err
 	}
-	err = usersCollection.FindOne(context.TODO(), bson.M{"username": user.Username}).Decode(&existingUser)
+	err = usersCollection.FindOne(context.Background(), bson.M{"username": user.Username}).Decode(&existingUser)
 	if err == nil {
 		return errors.New("username already exists")
 	}
@@ -36,7 +37,7 @@ func RegisterUser(db *mongo.Database, user *models.User) error {
 		return err
 	}
 
-	// Hash the password
+	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return err
@@ -45,47 +46,35 @@ func RegisterUser(db *mongo.Database, user *models.User) error {
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = time.Now()
 	user.Verified = false
-	user.IsAdmin = false
+	//user.IsAdmin = false // Enforce false for security; override via MongoDB or admin endpoint
 
-	// Start a transaction
-	session, err := db.Client().StartSession()
+	// Create user
+	userResult, err := usersCollection.InsertOne(context.Background(), user)
 	if err != nil {
 		return err
 	}
-	defer session.EndSession(context.TODO())
 
-	err = mongo.WithSession(context.TODO(), session, func(sc mongo.SessionContext) error {
-		// Create user
-		userResult, err := usersCollection.InsertOne(sc, user)
-		if err != nil {
-			return err
-		}
-
-		// Create profile
-		profile := models.Profile{
-			UserID:     userResult.InsertedID.(primitive.ObjectID),
-			Bio:        "", // Default empty, editable later
-			Location:   "",
-			ProfilePic: "", // Could set a default URL
-			CreatedAt:  time.Now(),
-			UpdatedAt:  time.Now(),
-		}
-		err = repository.CreateProfile(db, &profile)
-		if err != nil {
-			return err
-		}
-
-		return session.CommitTransaction(sc)
-	})
-
+	// Create profile
+	profile := models.Profile{
+		UserID:     userResult.InsertedID.(primitive.ObjectID),
+		Bio:        "",
+		Location:   "",
+		ProfilePic: "",
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	}
+	err = repository.CreateProfile(db, &profile)
 	if err != nil {
-		session.AbortTransaction(context.TODO())
+		// Clean up user if profile creation fails
+		_, delErr := usersCollection.DeleteOne(context.Background(), bson.M{"_id": userResult.InsertedID})
+		if delErr != nil {
+			log.Printf("Failed to clean up user after profile creation failure: %v", delErr)
+		}
 		return err
 	}
 
 	return nil
 }
-
 
 func LoginUser(db *mongo.Collection, email, password string) (string, error) {
 	// Find the user by email
