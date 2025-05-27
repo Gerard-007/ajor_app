@@ -20,8 +20,10 @@ func InitRoutes(router *gin.Engine, db *mongo.Database) {
 	authenticated.GET("/users/:id", handlers.GetUserByIdHandler(usersCollection))
 	authenticated.GET("/profile/:id", handlers.GetUserProfileHandler(db))
 	authenticated.PUT("/profile/:id", handlers.UpdateUserProfileHandler(db))
-	// router.DELETE("/users/:id", handlers.DeleteUserHandler(db))
-	// router.GET("/users", handlers.GetAllUsersHandler(db))
+	// Admin actions
+	authenticated.GET("/users", handlers.GetAllUsersHandler(usersCollection))
+	authenticated.PUT("/users/:id", handlers.UpdateUserHandler(db))
+	authenticated.DELETE("/users/:id", handlers.DeleteUserHandler(db))
 
 	// router.POST("/forgot-password", handlers.ForgotPasswordHandler(db))
 	// router.POST("/reset-password", handlers.ResetPasswordHandler(db))
