@@ -41,3 +41,15 @@ func UpdateUserProfile(collection *mongo.Collection, userID primitive.ObjectID, 
 	_, err := collection.UpdateOne(context.TODO(), filter, update, options.Update().SetUpsert(true))
 	return err
 }
+
+func UpdateUserProfilePicture(collection *mongo.Collection, userID primitive.ObjectID, picturePath string) error {
+	filter := bson.M{"user_id": userID}
+	update := bson.M{
+		"$set": bson.M{
+			"profile_pic": picturePath,
+			"updated_at":  time.Now(),
+		},
+	}
+	_, err := collection.UpdateOne(context.TODO(), filter, update, options.Update().SetUpsert(true))
+	return err
+}

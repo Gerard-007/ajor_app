@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Gerard-007/ajor_app/internal/models"
+	"github.com/Gerard-007/ajor_app/pkg/payment"
 	"github.com/Gerard-007/ajor_app/internal/repository"
 	"github.com/Gerard-007/ajor_app/internal/services"
 	"github.com/Gerard-007/ajor_app/pkg/utils"
@@ -12,7 +13,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func RegisterHandler(db *mongo.Database) gin.HandlerFunc {
+func RegisterHandler(db *mongo.Database, pg payment.PaymentGateway) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var user models.User
 		if err := c.ShouldBindJSON(&user); err != nil {
@@ -20,7 +21,7 @@ func RegisterHandler(db *mongo.Database) gin.HandlerFunc {
 			return
 		}
 
-		if err := services.RegisterUser(db, &user); err != nil {
+		if err := services.RegisterUser(db, &user, pg); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}

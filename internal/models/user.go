@@ -8,12 +8,13 @@ import (
 
 type User struct {
 	ID        primitive.ObjectID `json:"id" bson:"_id,omitempty"`
-	Email     string             `json:"email" bson:"email"`
-	Password  string             `json:"-" bson:"password"` // Omit from JSON
 	Username  string             `json:"username" bson:"username"`
-	Phone     string             `json:"phone" bson:"phone"`
-	Verified  bool               `json:"verified" bson:"verified"`
+	Email     string             `json:"email" bson:"email"`
+	Password  string             `json:"password" bson:"password"`
 	IsAdmin   bool               `json:"is_admin" bson:"is_admin"`
+	WalletID  primitive.ObjectID `json:"wallet_id" bson:"wallet_id"`
+	Phone     string             `json:"phone" bson:"phone"`
+	BVN       string             `json:"bvn" bson:"bvn,omitempty"`
 	CreatedAt time.Time          `json:"created_at" bson:"created_at"`
 	UpdatedAt time.Time          `json:"updated_at" bson:"updated_at"`
 }

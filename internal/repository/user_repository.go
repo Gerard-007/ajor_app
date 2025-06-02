@@ -44,13 +44,13 @@ func CreateUser(db *mongo.Collection, user *models.User) error {
 	return err
 }
 
-
 type UserUpdate struct {
-	Email    string `bson:"email,omitempty"`
-	Username string `bson:"username,omitempty"`
-	Phone    string `bson:"phone,omitempty"`
-	Verified bool   `bson:"verified,omitempty"`
-	IsAdmin  bool   `bson:"is_admin,omitempty"`
+	Email    string             `bson:"email,omitempty"`
+	Username string             `bson:"username,omitempty"`
+	Phone    string             `bson:"phone,omitempty"`
+	Verified bool               `bson:"verified,omitempty"`
+	IsAdmin  bool               `bson:"is_admin,omitempty"`
+	WalletID primitive.ObjectID `bson:"wallet_id,omitempty"`
 }
 
 func UpdateUser(db *mongo.Database, id primitive.ObjectID, userUpdate *UserUpdate) (*models.User, error) {
@@ -85,6 +85,7 @@ func UpdateUser(db *mongo.Database, id primitive.ObjectID, userUpdate *UserUpdat
 			"phone":      userUpdate.Phone,
 			"verified":   userUpdate.Verified,
 			"is_admin":   userUpdate.IsAdmin,
+			"wallet_id":  userUpdate.WalletID,
 			"updated_at": time.Now(),
 		},
 	}
