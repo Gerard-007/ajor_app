@@ -14,10 +14,10 @@ services:
   #   build:
   #     context: .
   #     dockerfile: Dockerfile
-  #   ports:
-  #     - "8080:8080"
   #   env_file:
   #     - .env
+  #   ports:
+  #     - "8080:8080"
   #   depends_on:
   #     - mongo
 volumes:

@@ -9,6 +9,7 @@ import (
 	"github.com/Gerard-007/ajor_app/internal/models"
 	"github.com/Gerard-007/ajor_app/internal/repository"
 	"github.com/Gerard-007/ajor_app/pkg/payment"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -67,17 +68,17 @@ func CreateContribution(ctx context.Context, db *mongo.Database, pg payment.Paym
 	var user models.User
 	err := db.Collection("users").FindOne(ctx, bson.M{"_id": groupAdminID}).Decode(&user)
 	if err != nil {
-		repository.DeleteWallet(ctx, db, wallet.ID)
+		repository.DeleteWallet(db, wallet.ID)
 		return errors.New("group admin not found")
 	}
 	narration := fmt.Sprintf("Contribution %s", contribution.Name)
 	va, err := pg.CreateVirtualAccount(ctx, groupAdminID, user.Email, user.Phone, narration, true, user.BVN)
 	if err != nil {
-		repository.DeleteWallet(ctx, db, wallet.ID)
+		repository.DeleteWallet(db, wallet.ID)
 		return fmt.Errorf("failed to create virtual account: %v", err)
 	}
-	if err := repository.UpdateWalletVirtualAccount(ctx, db, wallet.ID, va); err != nil {
-		repository.DeleteWallet(ctx, db, wallet.ID)
+	if err := repository.UpdateWalletVirtualAccount(db, wallet.ID, va); err != nil {
+		repository.DeleteWallet(db, wallet.ID)
 		return fmt.Errorf("failed to update wallet with virtual account: %w", err)
 	}
 
@@ -107,15 +108,6 @@ func GetContribution(ctx context.Context, db *mongo.Database, id, userID primiti
 
 func GetUserContributions(ctx context.Context, db *mongo.Database, userID primitive.ObjectID) ([]*models.Contribution, error) {
 	return repository.GetContributionsByUser(ctx, db, userID)
-}
-
-
-
-func GetAllContributions(db *mongo.Database, isSystemAdmin bool) ([]*models.Contribution, error) {
-	if !isSystemAdmin {
-		return nil, errors.New("only system admins can view all contributions")
-	}
-	return repository.GetAllContributions(db)
 }
 
 func UpdateContribution(ctx context.Context, db *mongo.Database, id, userID primitive.ObjectID, contribution *models.Contribution) error {
@@ -196,4 +188,11 @@ func containsUser(members []primitive.ObjectID, userID primitive.ObjectID) bool 
 		}
 	}
 	return false
+}
+
+func GetAllContributions(db *mongo.Database, isSystemAdmin bool) ([]*models.Contribution, error) {
+	if !isSystemAdmin {
+		return nil, errors.New("only system admins can view all contributions")
+	}
+	return repository.GetAllContributions(db)
 }

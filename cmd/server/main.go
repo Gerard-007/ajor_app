@@ -27,7 +27,7 @@ func main() {
 
 	server := gin.Default()
 	routes.InitRoutes(server, db, pg)
-	
+
 	// Start cron job
 	c := cron.New()
 	_, err = c.AddFunc("0 0 * * *", func() { // Runs daily at midnight
@@ -45,6 +45,6 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
-	log.Printf("Starting server on port %s", port)	
+	log.Printf("Starting server on port %s", port)
 	server.Run(":" + port)
 }

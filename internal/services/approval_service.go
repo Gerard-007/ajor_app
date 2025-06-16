@@ -14,7 +14,8 @@ import (
 )
 
 func ApprovePayout(ctx context.Context, db *mongo.Database, approvalID, approverID primitive.ObjectID, approve bool) error {
-	approval, err := db.Collection("approvals").FindOne(ctx, bson.M{"_id": approvalID}).Decode(&models.Approval{})
+	var approval models.Approval
+	err := db.Collection("approvals").FindOne(ctx, bson.M{"_id": approvalID}).Decode(&approval)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return errors.New("approval not found")
@@ -42,9 +43,13 @@ func ApprovePayout(ctx context.Context, db *mongo.Database, approvalID, approver
 	}
 
 	if approve {
-		transaction, err := db.Collection("transactions").FindOne(ctx, bson.M{"_id": approval.TransactionID}).Decode(&models.Transaction{})
+		var transaction models.Transaction
+		err := db.Collection("transactions").FindOne(ctx, bson.M{"_id": approval.TransactionID}).Decode(&transaction)
 		if err != nil {
-			return errors.New("transaction not found")
+			if err == mongo.ErrNoDocuments {
+				return errors.New("transaction not found")
+			}
+			return err
 		}
 
 		// Update wallet balances
@@ -58,7 +63,7 @@ func ApprovePayout(ctx context.Context, db *mongo.Database, approvalID, approver
 		}
 
 		// Update transaction status
-		_, err = db.Collection("transactions").UpdateOne(bson.M{"_id": transaction.ID}, bson.M{
+		_, err = db.Collection("transactions").UpdateOne(ctx, bson.M{"_id": transaction.ID}, bson.M{
 			"$set": bson.M{
 				"status":     models.StatusSuccess,
 				"updated_at": time.Now(),

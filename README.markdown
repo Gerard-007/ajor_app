@@ -506,3 +506,65 @@ curl -X DELETE http://localhost:8080/users/60c72b2f9b1d4b3c7c8d9e0f \
   ```
 
 For further assistance, check server logs or contact the developer.
+
+
+
+ajor_app/
+├── cmd/
+│   └── server
+│       └── main.go
+├── internal/
+│   ├── auth/
+│   │   └── middleware.go
+│   ├── handlers/
+│   │   ├── auth_handler.go
+│   │   ├── user_handler.go
+│   │   ├── wallet_handler.go
+│   │   ├── contribution_handler.go
+│   │   ├── collection_handler.go
+│   │   ├── transaction_handler.go
+│   │   ├── notification_handler.go
+│   │   ├── approval_handler.go
+│   │   └── profile_handler.go
+│   ├── models/
+│   │   ├── user.go
+│   │   ├── wallet.go
+│   │   ├── contribution.go
+│   │   ├── approval.go
+│   │   ├── collection.go
+│   │   ├── notification.go
+│   │   ├── profile.go
+│   │   └── transaction.go
+│   ├── repository/
+│   │   ├── user_repository.go
+│   │   ├── wallet_repository.go
+│   │   ├── contribution_repository.go
+│   │   ├── transaction_repository.go
+│   │   ├── notification_repository.go
+│   │   ├── collection_repository.go
+│   │   ├── approval_repository.go
+│   │   ├── profile_repository.go
+│   │   └── blacklist_repository.go
+│   ├── services/
+│   │   ├── user_service.go
+│   │   ├── contribution_service.go
+│   │   ├── collection_service.go
+│   │   ├── transaction_service.go
+│   │   ├── notification_service.go
+│   │   └── approval_service.go
+│   ├── routes/
+│   │   └── routes.go
+│   └── utils/
+│       └── jwt.go
+├── pkg/
+│   ├── helpers/
+│   ├── jobs/
+│   │    └──jobs.go
+│   ├── payment/
+│   │    └──flutterwave.go
+│   │    └──gateway.go
+│   └── utils/
+│       └──jwt.go
+├── tests/
+│   └── (all tests here)
+└── .env

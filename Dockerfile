@@ -1,14 +1,23 @@
-FROM golang:1.23-alpine
+FROM golang:1.24-alpine
+
+# Install dependencies
+RUN apk add --no-cache git ca-certificates
 
 WORKDIR /app
 
+# Copy and download dependencies
 COPY go.mod go.sum ./
-RUN go mod download
+RUN go mod download && go mod verify
 
+# Install air
+RUN go install github.com/air-verse/air@latest
+
+# Copy source code and configuration
 COPY . .
 
-RUN go build -o main ./cmd/server/main.go
-
+# Expose port
 EXPOSE 8080
 
-CMD ["./main"]
+# Run air with .air.toml
+CMD ["air", "-c", ".air.toml"]
+# CMD ["./main"]  # For production only.
