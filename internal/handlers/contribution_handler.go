@@ -149,7 +149,7 @@ func RemoveMemberHandler(db *mongo.Database) gin.HandlerFunc {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 			return
 		}
-		contributionID, err := primitive.ObjectIDFromHex(c.Param("contribution_id"))
+		contributionID, err := primitive.ObjectIDFromHex(c.Param("id"))
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid contribution ID"})
 			return
@@ -212,7 +212,7 @@ func RecordPayoutHandler(db *mongo.Database) gin.HandlerFunc {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 			return
 		}
-		contributionID, err := primitive.ObjectIDFromHex(c.Param("contribution_id"))
+		contributionID, err := primitive.ObjectIDFromHex(c.Param("id"))
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid contribution ID"})
 			return
