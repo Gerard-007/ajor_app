@@ -72,12 +72,12 @@ func CreateContribution(ctx context.Context, db *mongo.Database, pg payment.Paym
 		return errors.New("group admin not found")
 	}
 	narration := fmt.Sprintf("Contribution %s", contribution.Name)
-	va, err := pg.CreateVirtualAccount(ctx, groupAdminID, user.Email, user.Phone, narration, true, user.BVN)
+	va, err := pg.CreateVirtualAccount(ctx, groupAdminID, user.Email, user.Phone, narration, true, user.BVN, contribution.Amount)
 	if err != nil {
 		repository.DeleteWallet(db, wallet.ID)
 		return fmt.Errorf("failed to create virtual account: %v", err)
 	}
-	if err := repository.UpdateWalletVirtualAccount(db, wallet.ID, va); err != nil {
+	if err := repository.UpdateWalletVirtualAccount(db, wallet.ID, va.AccountNumber, va.AccountID, va.BankName); err != nil {
 		repository.DeleteWallet(db, wallet.ID)
 		return fmt.Errorf("failed to update wallet with virtual account: %w", err)
 	}

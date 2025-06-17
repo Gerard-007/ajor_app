@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/Gerard-007/ajor_app/internal/models"
-	"github.com/Gerard-007/ajor_app/pkg/payment"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -14,15 +13,25 @@ import (
 
 func CreateWallet(db *mongo.Database, wallet *models.Wallet) error {
 	collection := db.Collection("wallets")
-	wallet.CreatedAt = time.Now()
-	wallet.UpdatedAt = time.Now()
-	_, err := collection.InsertOne(context.TODO(), wallet)
-	return err
+	ctx := context.Background()
+
+	// Insert wallet with pre-assigned ID
+	result, err := collection.InsertOne(ctx, wallet)
+	if err != nil {
+		return err
+	}
+
+	// Ensure wallet.ID is set
+	if wallet.ID.IsZero() {
+		wallet.ID = result.InsertedID.(primitive.ObjectID)
+	}
+
+	return nil
 }
 
-func GetWalletByID(db *mongo.Database, id primitive.ObjectID) (*models.Wallet, error) {
+func GetWalletByID(db *mongo.Database, owner_id primitive.ObjectID) (*models.Wallet, error) {
 	var wallet models.Wallet
-	err := db.Collection("wallets").FindOne(context.TODO(), bson.M{"_id": id}).Decode(&wallet)
+	err := db.Collection("wallets").FindOne(context.TODO(), bson.M{"owner_id": owner_id}).Decode(&wallet)
 	if err != nil {
 		return nil, err
 	}
@@ -53,23 +62,28 @@ func UpdateWalletBalance(db *mongo.Database, walletID primitive.ObjectID, amount
 	return nil
 }
 
-func UpdateWalletVirtualAccount(db *mongo.Database, walletID primitive.ObjectID, va *payment.VirtualAccount) error {
-	filter := bson.M{"_id": walletID}
+func UpdateWalletVirtualAccount(db *mongo.Database, walletID primitive.ObjectID, virtualAccountNumber, accountID, accountBank  string) error {
+	collection := db.Collection("wallets")
+	ctx := context.Background()
+
 	update := bson.M{
 		"$set": bson.M{
-			"virtual_account_id":     va.AccountID,
-			"virtual_account_number": va.AccountNumber,
-			"virtual_bank_name":      va.BankName,
+			"virtual_account_number": virtualAccountNumber,
+			"account_id":             accountID,
+			"account_bank":           accountBank,
 			"updated_at":             time.Now(),
 		},
 	}
-	result, err := db.Collection("wallets").UpdateOne(context.TODO(), filter, update)
+
+	result, err := collection.UpdateOne(ctx, bson.M{"_id": walletID}, update)
 	if err != nil {
 		return err
 	}
+
 	if result.MatchedCount == 0 {
 		return errors.New("wallet not found")
 	}
+
 	return nil
 }
 

@@ -7,8 +7,6 @@ import (
 	"log"
 	"time"
 
-	// "time"
-
 	"github.com/Gerard-007/ajor_app/internal/models"
 	"github.com/Gerard-007/ajor_app/internal/repository"
 	"github.com/Gerard-007/ajor_app/pkg/payment"
@@ -24,7 +22,7 @@ func RegisterUser(db *mongo.Database, user *models.User, pg payment.PaymentGatew
 
 	// Validate input
 	if user.Username == "" || user.Email == "" || user.Password == "" || user.Phone == "" || user.BVN == "" {
-		return errors.New("Username, email, password, phone and BVN are required.")
+		return errors.New("username, email, password, phone and BVN are required")
 	}
 
 	// Check if email or username exists
@@ -60,10 +58,11 @@ func RegisterUser(db *mongo.Database, user *models.User, pg payment.PaymentGatew
 	if err != nil {
 		return err
 	}
+	user.ID = userResult.InsertedID.(primitive.ObjectID)
 
 	// Create profile
 	profile := models.Profile{
-		UserID:     userResult.InsertedID.(primitive.ObjectID),
+		UserID:     user.ID,
 		Bio:        "",
 		Location:   "",
 		ProfilePic: "",
@@ -73,7 +72,7 @@ func RegisterUser(db *mongo.Database, user *models.User, pg payment.PaymentGatew
 	err = repository.CreateProfile(db, &profile)
 	if err != nil {
 		// Clean up user if profile creation fails
-		_, delErr := usersCollection.DeleteOne(context.Background(), bson.M{"_id": userResult.InsertedID})
+		_, delErr := usersCollection.DeleteOne(context.Background(), bson.M{"_id": user.ID})
 		if delErr != nil {
 			log.Printf("Failed to clean up user after profile creation failure: %v", delErr)
 		}
@@ -81,41 +80,42 @@ func RegisterUser(db *mongo.Database, user *models.User, pg payment.PaymentGatew
 	}
 
 	// Create wallet
-	wallet := &models.Wallet{
-		OwnerID: user.ID,
-		Type:    models.WalletTypeUser,
-		Balance: 0.0,
+	wallet := models.Wallet{
+		ID:        primitive.NewObjectID(),
+		OwnerID:   user.ID,
+		Type:      models.WalletTypeUser,
+		Balance:   0.0,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
-	if err := repository.CreateWallet(db, wallet); err != nil {
-		// Rollback user creation
-		usersCollection.DeleteOne(context.TODO(), bson.M{"_id": user.ID})
+	err = repository.CreateWallet(db, &wallet)
+	if err != nil {
+		// Clean up user and profile if wallet creation fails
+		_, delErr := usersCollection.DeleteOne(context.Background(), bson.M{"_id": user.ID})
+		if delErr != nil {
+			log.Printf("Failed to clean up user after wallet creation failure: %v", delErr)
+		}
 		return err
 	}
+	log.Printf("Created wallet with ID: %s for user: %s", wallet.ID.Hex(), user.Email)
+
 
 	// Create virtual account
 	narration := fmt.Sprintf("Wallet for %s", user.Username)
-	va, err := pg.CreateVirtualAccount(context.TODO(), user.ID, user.Email, user.Phone, narration, true, user.BVN)
+	va, err := pg.CreateVirtualAccount(context.Background(), user.ID, user.Email, user.Phone, narration, true, user.BVN, 0.0)
 	if err != nil {
-		usersCollection.DeleteOne(context.TODO(), bson.M{"_id": user.ID})
-		db.Collection("wallets").DeleteOne(context.TODO(), bson.M{"_id": wallet.ID})
-		return err
+		log.Printf("Failed to create virtual account for user %s: %v", user.Email, err)
+		usersCollection.DeleteOne(context.Background(), bson.M{"_id": user.ID})
+		db.Collection("wallets").DeleteOne(context.Background(), bson.M{"_id": wallet.ID})
+		return fmt.Errorf("failed to create virtual account: %v", err)
 	}
 
 	// Update wallet with virtual account details
-	if err := repository.UpdateWalletVirtualAccount(db, wallet.ID, va); err != nil {
-		usersCollection.DeleteOne(context.TODO(), bson.M{"_id": user.ID})
-		db.Collection("wallets").DeleteOne(context.TODO(), bson.M{"_id": wallet.ID})
-		return err
-	}
-
-	// Update user with wallet ID
-	filter := bson.M{"_id": user.ID}
-	update := bson.M{"$set": bson.M{"wallet_id": wallet.ID}}
-	if _, err := usersCollection.UpdateOne(context.TODO(), filter, update); err != nil {
-		// Rollback
-		usersCollection.DeleteOne(context.TODO(), bson.M{"_id": user.ID})
-		db.Collection("wallets").DeleteOne(context.TODO(), bson.M{"_id": wallet.ID})
-		return err
+	if err := repository.UpdateWalletVirtualAccount(db, wallet.ID, va.AccountNumber, va.AccountID, va.BankName); err != nil {
+		log.Printf("Failed to update wallet %s with virtual account for user %s: %v", wallet.ID.Hex(), user.Email, err)
+		usersCollection.DeleteOne(context.Background(), bson.M{"_id": user.ID})
+		db.Collection("wallets").DeleteOne(context.Background(), bson.M{"_id": wallet.ID})
+		return fmt.Errorf("wallet not found: %v", err)
 	}
 
 	return nil

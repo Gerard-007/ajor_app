@@ -12,7 +12,6 @@ type User struct {
 	Email     string             `json:"email" bson:"email"`
 	Password  string             `json:"password" bson:"password"`
 	IsAdmin   bool               `json:"is_admin" bson:"is_admin"`
-	WalletID  primitive.ObjectID `json:"wallet_id" bson:"wallet_id"`
 	Phone     string             `json:"phone" bson:"phone"`
 	BVN       string             `json:"bvn" bson:"bvn,omitempty"`
 	CreatedAt time.Time          `json:"created_at" bson:"created_at"`

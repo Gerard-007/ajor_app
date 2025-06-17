@@ -31,7 +31,7 @@ func RecordContribution(ctx context.Context, db *mongo.Database, contributionID,
 	if err != nil {
 		return errors.New("user not found")
 	}
-	userWallet, err := repository.GetWalletByID(db, user.WalletID)
+	userWallet, err := repository.GetWalletByID(db, user.ID)
 	if err != nil {
 		return errors.New("user wallet not found")
 	}
@@ -104,7 +104,7 @@ func RecordPayout(ctx context.Context, db *mongo.Database, contributionID, userI
 	if err != nil {
 		return errors.New("user not found")
 	}
-	userWallet, err := repository.GetWalletByID(db, user.WalletID)
+	userWallet, err := repository.GetWalletByID(db, user.ID)
 	if err != nil {
 		return errors.New("user wallet not found")
 	}

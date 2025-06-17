@@ -26,6 +26,10 @@ func main() {
 	pg := payment.NewFlutterwaveGateway()
 
 	server := gin.Default()
+	// Configure trusted proxies
+	if err := server.SetTrustedProxies([]string{"127.0.0.1"}); err != nil {
+		log.Fatal("Failed to set trusted proxies:", err)
+	}
 	routes.InitRoutes(server, db, pg)
 
 	// Start cron job

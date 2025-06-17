@@ -13,7 +13,7 @@ type VirtualAccount struct {
 }
 
 type PaymentGateway interface {
-	CreateVirtualAccount(ctx context.Context, ownerID primitive.ObjectID, email, phone, narration string, isPermanent bool, bvn string) (*VirtualAccount, error)
+	CreateVirtualAccount(ctx context.Context, ownerID primitive.ObjectID, email, phone, narration string, isPermanent bool, bvn string, amount float64) (*VirtualAccount, error)
 	GetVirtualAccount(ctx context.Context, accountID string) (*VirtualAccount, error)
 	DeactivateVirtualAccount(ctx context.Context, accountID string) error
 	Transfer(ctx context.Context, fromWalletID, toWalletID primitive.ObjectID, amount float64, reference string) error

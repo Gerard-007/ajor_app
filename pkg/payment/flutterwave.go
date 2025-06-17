@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -15,18 +16,19 @@ import (
 )
 
 type FlutterwaveGateway struct {
-	APIKey string
+	APIKey  string
 	BaseURL string
 }
 
 type createVirtualAccountRequest struct {
-	Email        string `json:"email"`
-	Currency     string `json:"currency"`
-	IsPermanent  bool   `json:"is_permanent"`
-	Narration    string `json:"narration"`
-	PhoneNumber  string `json:"phonenumber"`
-	BVN          string `json:"bvn,omitempty"`
-	TxRef        string `json:"tx_ref"`
+	Email        string  `json:"email"`
+	Currency     string  `json:"currency"`
+	IsPermanent  bool    `json:"is_permanent"`
+	Narration    string  `json:"narration"`
+	PhoneNumber  string  `json:"phonenumber"`
+	BVN          string  `json:"bvn,omitempty"`
+	TxRef        string  `json:"tx_ref"`
+	Amount       *float64 `json:"amount,omitempty"`
 }
 
 type createVirtualAccountResponse struct {
@@ -54,15 +56,22 @@ type deactivateVirtualAccountRequest struct {
 }
 
 func NewFlutterwaveGateway() *FlutterwaveGateway {
-	return &FlutterwaveGateway{
-		APIKey:  os.Getenv("FLUTTERWAVE_API_KEY"),
-		BaseURL: "https://api.flutterwave.com/v3",
-	}
+    apiKey := os.Getenv("FLW_SECRET_KEY")
+    log.Printf("Flutterwave API Key: %s", apiKey)
+    return &FlutterwaveGateway{
+        APIKey:  apiKey,
+        BaseURL: "https://api.flutterwave.com/v3",
+    }
 }
 
-func (f *FlutterwaveGateway) CreateVirtualAccount(ctx context.Context, ownerID primitive.ObjectID, email, phone, narration string, isPermanent bool, bvn string) (*VirtualAccount, error) {
+func (f *FlutterwaveGateway) CreateVirtualAccount(ctx context.Context, ownerID primitive.ObjectID, email, phone, narration string, isPermanent bool, bvn string, amount float64) (*VirtualAccount, error) {
 	url := f.BaseURL + "/virtual-account-numbers"
 	txRef := fmt.Sprintf("ajor-%s-%d", ownerID.Hex(), time.Now().Unix())
+
+	var amountPtr *float64
+	if amount > 0 {
+		amountPtr = &amount
+	}
 
 	payload := createVirtualAccountRequest{
 		Email:       email,
@@ -72,6 +81,7 @@ func (f *FlutterwaveGateway) CreateVirtualAccount(ctx context.Context, ownerID p
 		PhoneNumber: phone,
 		BVN:         bvn,
 		TxRef:       txRef,
+		Amount:      amountPtr,
 	}
 
 	body, err := json.Marshal(payload)
