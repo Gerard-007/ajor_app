@@ -20,7 +20,7 @@ func AuthMiddleware(db *mongo.Database) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		// Remove "Bearer " prefix if present
 		if len(token) > 7 && token[:7] == "Bearer " {
 			token = token[7:]

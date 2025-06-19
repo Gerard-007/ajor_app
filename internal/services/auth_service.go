@@ -15,14 +15,46 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/crypto/bcrypt"
+	"strconv"
 )
 
 func RegisterUser(db *mongo.Database, user *models.User, pg payment.PaymentGateway) error {
 	usersCollection := db.Collection("users")
 
+	// Generate username from email if not provided
+	if user.Username == "" {
+		generatedUsername, err := utils.GenerateUsernameFromEmail(db, user.Email)
+		if err != nil {
+			return fmt.Errorf("failed to generate username: %v", err)
+		}
+		user.Username = generatedUsername
+	}
+
 	// Validate input
-	if user.Username == "" || user.Email == "" || user.Password == "" || user.Phone == "" || user.BVN == "" {
-		return errors.New("username, email, password, phone and BVN are required")
+	if user.Username == "" {
+		return errors.New("username is required")
+	}
+	if user.Email == ""  {
+		return errors.New("email is required")
+	}
+	if user.Password == ""{
+		return errors.New("password is required")
+	}
+	if user.Phone == "" || len(user.Phone) < 11 {
+		return errors.New("phone is required")
+	}
+	// Check if phone contains only digits
+	if _, err := strconv.Atoi(user.Phone); err != nil {
+		return errors.New("phone must contain only digits")
+	}
+
+	if user.BVN == "" || len(user.BVN) != 10 {
+		return errors.New("BVN is required and must be 10 digits")
+	}
+
+	// Check if BVN contains only digits
+	if _, err := strconv.Atoi(user.BVN); err != nil {
+		return errors.New("BVN must contain only digits")
 	}
 
 	// Check if email or username exists
@@ -37,6 +69,13 @@ func RegisterUser(db *mongo.Database, user *models.User, pg payment.PaymentGatew
 	err = usersCollection.FindOne(context.Background(), bson.M{"username": user.Username}).Decode(&existingUser)
 	if err == nil {
 		return errors.New("username already exists")
+	}
+	if err != mongo.ErrNoDocuments {
+		return err
+	}
+	err = usersCollection.FindOne(context.Background(), bson.M{"phone": user.Phone}).Decode(&existingUser)
+	if err == nil {
+		return errors.New("phone already exists")
 	}
 	if err != mongo.ErrNoDocuments {
 		return err

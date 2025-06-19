@@ -20,8 +20,9 @@ func InitRoutes(router *gin.Engine, db *mongo.Database, pg payment.PaymentGatewa
 	authenticated.Use(auth.AuthMiddleware(db))
 	{
 		// User routes
-		authenticated.GET("/users/:id", handlers.GetUserByIdHandler(usersCollection))
+		authenticated.GET("/users/:id", handlers.GetUserByIdHandler(db))
 		authenticated.GET("/admin/users", handlers.GetAllUsersHandler(usersCollection))
+		authenticated.GET("/profile/:id", handlers.GetUserProfileHandler(db))
 		authenticated.PUT("/profile/:id", handlers.UpdateUserProfileHandler(db))
 		authenticated.PUT("/users/:id", handlers.UpdateUserHandler(db))
 		authenticated.DELETE("/users/:id", handlers.DeleteUserHandler(db))
@@ -44,7 +45,7 @@ func InitRoutes(router *gin.Engine, db *mongo.Database, pg payment.PaymentGatewa
 		authenticated.PUT("/approvals/:approval_id", handlers.ApprovePayoutHandler(db))
 		authenticated.GET("/approvals", handlers.GetPendingApprovalsHandler(db))
 		// Wallet routes
-		authenticated.GET("/wallet", handlers.GetWalletHandler(db, pg))
+		authenticated.GET("/wallet", handlers.GetUserWalletHandler(db, pg))
 		authenticated.DELETE("/wallet", handlers.DeleteWalletHandler(db, pg))
 	}
 }

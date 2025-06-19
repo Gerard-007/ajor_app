@@ -9,10 +9,10 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func GetUserByIdHandler(db *mongo.Collection) gin.HandlerFunc {
+func GetUserByIdHandler(db *mongo.Database) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userIdStr := c.Param("id")
-		userId, err := primitive.ObjectIDFromHex(userIdStr)
+		userID, err := primitive.ObjectIDFromHex(userIdStr)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"status": "error",
@@ -20,14 +20,37 @@ func GetUserByIdHandler(db *mongo.Collection) gin.HandlerFunc {
 			})
 			return
 		}
-		user, err := services.GetUserByID(db, userId)
+
+		// Get authenticated user ID and admin status
+		authUserIDStr, _ := c.Get("userID")
+		isAdmin, _ := c.Get("isAdmin")
+		authUserID, err := primitive.ObjectIDFromHex(authUserIDStr.(string))
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"status": "error",
-				"error":  "Failed to fetch user",
+				"error":  "Invalid authenticated user ID",
 			})
 			return
 		}
+
+		// Authorization check: user can only access their own data unless admin
+		if !isAdmin.(bool) && authUserID != userID {
+			c.JSON(http.StatusForbidden, gin.H{
+				"status": "error",
+				"error":  "Unauthorized access",
+			})
+			return
+		}
+
+		user, err := services.GetUserByID(db, userID)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{
+				"status": "error",
+				"error":  err.Error(),
+			})
+			return
+		}
+
 		c.JSON(http.StatusOK, user)
 	}
 }
