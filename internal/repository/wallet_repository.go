@@ -69,8 +69,8 @@ func UpdateWalletVirtualAccount(db *mongo.Database, walletID primitive.ObjectID,
 	update := bson.M{
 		"$set": bson.M{
 			"virtual_account_number": virtualAccountNumber,
-			"account_id":             accountID,
-			"account_bank":           accountBank,
+			"virtual_account_id":             accountID,
+			"virtual_bank_name":           accountBank,
 			"updated_at":             time.Now(),
 		},
 	}

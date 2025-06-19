@@ -13,8 +13,54 @@ func GetAllUsers(db *mongo.Collection) ([]*models.User, error) {
 	return repository.GetAllUsers(db)
 }
 
-func GetUserByID(db *mongo.Collection, id primitive.ObjectID) (*models.User, error) {
-	return repository.GetUserByID(db, id)
+// func GetUserByID(db *mongo.Collection, id primitive.ObjectID) (*models.User, error) {
+// 	return repository.GetUserByID(db, id)
+// }
+
+func GetUserByID(db *mongo.Database, id primitive.ObjectID) (*models.UserResponse, error) {
+	//ctx := context.Background()
+
+	// Fetch user
+	usersCollection := db.Collection("users")
+	user, err := repository.GetUserByID(usersCollection, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch profile
+	profilesCollection := db.Collection("profiles")
+	profile, err := repository.GetProfileByUserID(profilesCollection, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch wallet
+	walletsCollection := db.Collection("wallets")
+	wallet, err := repository.GetWalletByOwnerID(walletsCollection, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Combine into UserResponse
+	response := &models.UserResponse{
+		ID:        user.ID,
+		Username:  user.Username,
+		Email:     user.Email,
+		IsAdmin:   user.IsAdmin,
+		Phone:     user.Phone,
+		BVN:       user.BVN,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+		Profile:   profile,
+		Wallet:    wallet,
+	}
+
+	// Map wallet fields to match desired output
+	response.Wallet.VirtualAccountID = wallet.VirtualAccountID
+	response.Wallet.VirtualBankName = wallet.VirtualBankName
+	response.Wallet.VirtualAccountNumber = wallet.VirtualAccountID
+
+	return response, nil
 }
 
 type UserUpdate struct {

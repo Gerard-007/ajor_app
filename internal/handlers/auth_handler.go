@@ -1,33 +1,33 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/Gerard-007/ajor_app/internal/models"
-	"github.com/Gerard-007/ajor_app/pkg/payment"
 	"github.com/Gerard-007/ajor_app/internal/repository"
 	"github.com/Gerard-007/ajor_app/internal/services"
+	"github.com/Gerard-007/ajor_app/pkg/payment"
 	"github.com/Gerard-007/ajor_app/pkg/utils"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 func RegisterHandler(db *mongo.Database, pg payment.PaymentGateway) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		var user models.User
-		if err := c.ShouldBindJSON(&user); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
-			return
-		}
-
-		if err := services.RegisterUser(db, &user, pg); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-
-		c.JSON(http.StatusCreated, gin.H{"message": "User registered successfully"})
-	}
+    return func(c *gin.Context) {
+        var user models.User
+        if err := c.ShouldBindJSON(&user); err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input: " + err.Error()})
+            return
+        }
+        log.Printf("Bound user: %+v", user) // Debug log
+        if err := services.RegisterUser(db, &user, pg); err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+            return
+        }
+        c.JSON(http.StatusCreated, gin.H{"message": "User registered successfully"})
+    }
 }
 
 func LoginHandler(db *mongo.Collection) gin.HandlerFunc {

@@ -13,7 +13,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func GetWalletHandler(db *mongo.Database, pg payment.PaymentGateway) gin.HandlerFunc {
+func GetUserWalletHandler(db *mongo.Database, pg payment.PaymentGateway) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userIDStr, exists := c.Get("userID")
 		if !exists {

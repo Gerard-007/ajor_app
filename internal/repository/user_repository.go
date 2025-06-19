@@ -109,11 +109,38 @@ func UpdateUser(db *mongo.Database, id primitive.ObjectID, userUpdate *UserUpdat
 
 func GetUserByID(db *mongo.Collection, id primitive.ObjectID) (*models.User, error) {
 	var user models.User
-	err := db.FindOne(context.TODO(), bson.M{"_id": id}).Decode(&user)
+	err := db.FindOne(context.Background(), bson.M{"_id": id}).Decode(&user)
 	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, errors.New("user not found")
+		}
 		return nil, err
 	}
 	return &user, nil
+}
+
+func GetProfileByUserID(db *mongo.Collection, userID primitive.ObjectID) (*models.Profile, error) {
+	var profile models.Profile
+	err := db.FindOne(context.Background(), bson.M{"user_id": userID}).Decode(&profile)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, errors.New("profile not found")
+		}
+		return nil, err
+	}
+	return &profile, nil
+}
+
+func GetWalletByOwnerID(db *mongo.Collection, ownerID primitive.ObjectID) (*models.Wallet, error) {
+	var wallet models.Wallet
+	err := db.FindOne(context.Background(), bson.M{"owner_id": ownerID}).Decode(&wallet)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, errors.New("wallet not found")
+		}
+		return nil, err
+	}
+	return &wallet, nil
 }
 
 func GetUserByEmail(db *mongo.Collection, email string) (*models.User, error) {

@@ -1,10 +1,11 @@
 package main
 
 import (
-    "fmt"
-    "strings"
-    "net/http"
-    "io"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"strings"
 )
 
 func main() {
@@ -13,7 +14,7 @@ func main() {
 
     req, _ := http.NewRequest("POST", url, payload)
     req.Header.Add("accept", "application/json")
-    req.Header.Add("Authorization", "Bearer FLWSECK_TEST-e51cb7b74a4b38998fb13148d8ef0095-X") // Use your test key
+    req.Header.Add("Authorization", "Bearer " + os.Getenv("FLW_SECRET_KEY")) // Use your test key
     req.Header.Add("Content-Type", "application/json")
 
     res, err := http.DefaultClient.Do(req)
