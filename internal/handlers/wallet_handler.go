@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/Gerard-007/ajor_app/internal/models"
@@ -84,31 +85,55 @@ func FundWalletHandler(db *mongo.Database, pg payment.PaymentGateway) gin.Handle
 	}
 }
 
+
 func GetContributionWalletHandler(db *mongo.Database, pg payment.PaymentGateway) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Extract and validate userID from context
 		userIDStr, exists := c.Get("userID")
 		if !exists {
+			log.Println("UserID not found in context")
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 			return
 		}
 		userID, err := primitive.ObjectIDFromHex(userIDStr.(string))
 		if err != nil {
+			log.Printf("Invalid user ID format: %v", err)
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 			return
 		}
 
-		isAdmin, _ := c.Get("isAdmin")
-		isAdminBool := isAdmin.(bool)
+		// Extract and validate isAdmin from context
+		isAdmin, exists := c.Get("isAdmin")
+		if !exists {
+			log.Println("isAdmin not found in context")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			return
+		}
+		isAdminBool, ok := isAdmin.(bool)
+		if !ok {
+			log.Println("Invalid isAdmin type in context")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			return
+		}
 
+		// Extract and validate contribution ID from URL
 		contributionIDStr := c.Param("id")
+		if contributionIDStr == "" {
+			log.Println("Contribution ID is empty")
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Contribution ID is required"})
+			return
+		}
 		contributionID, err := primitive.ObjectIDFromHex(contributionIDStr)
 		if err != nil {
+			log.Printf("Invalid contribution ID format: %v", err)
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid contribution ID"})
 			return
 		}
 
+		// Fetch wallet using service
 		wallet, err := services.GetContributionWallet(c.Request.Context(), db, pg, contributionID, userID, isAdminBool)
 		if err != nil {
+			log.Printf("Failed to fetch contribution wallet: %v", err)
 			switch err.Error() {
 			case "contribution not found":
 				c.JSON(http.StatusNotFound, gin.H{"error": "Contribution not found"})
@@ -117,11 +142,13 @@ func GetContributionWalletHandler(db *mongo.Database, pg payment.PaymentGateway)
 			case "unauthorized access":
 				c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized access"})
 			default:
-				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to fetch wallet: %v", err)})
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch wallet"})
 			}
 			return
 		}
 
+		// Return wallet as JSON
+		log.Printf("Successfully fetched wallet for contribution %s", contributionID.Hex())
 		c.JSON(http.StatusOK, wallet)
 	}
 }

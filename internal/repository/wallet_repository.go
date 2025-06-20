@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"log"
 	"time"
 
 	"github.com/Gerard-007/ajor_app/internal/models"
@@ -42,6 +43,17 @@ func GetWalletByID(db *mongo.Database, wallet_id primitive.ObjectID) (*models.Wa
 	var wallet models.Wallet
 	err := db.Collection("wallets").FindOne(context.TODO(), bson.M{"_id": wallet_id}).Decode(&wallet)
 	if err != nil {
+		return nil, err
+	}
+	return &wallet, nil
+}
+
+func GetContributionWalletByID(ctx context.Context, db *mongo.Database, walletID primitive.ObjectID) (*models.Wallet, error) {
+	var wallet models.Wallet
+	collection := db.Collection("wallets")
+	err := collection.FindOne(ctx, bson.M{"_id": walletID}).Decode(&wallet)
+	if err != nil {
+		log.Printf("Error fetching wallet ID %s: %v", walletID.Hex(), err)
 		return nil, err
 	}
 	return &wallet, nil
