@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/Gerard-007/ajor_app/internal/models"
@@ -86,40 +87,44 @@ func FundWallet(ctx context.Context, db *mongo.Database, userID primitive.Object
 	return nil
 }
 
-// GetContributionWallet retrieves the wallet for a contribution group, ensuring the user is authorized.
 func GetContributionWallet(ctx context.Context, db *mongo.Database, pg payment.PaymentGateway, contributionID, userID primitive.ObjectID, isAdmin bool) (*models.Wallet, error) {
-	// Fetch contribution
-	contribution, err := repository.GetContributionByID(ctx, db, contributionID)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, fmt.Errorf("contribution not found")
-		}
-		return nil, fmt.Errorf("failed to fetch contribution: %v", err)
-	}
+    log.Printf("Fetching contribution ID: %s for user ID: %s", contributionID.Hex(), userID.Hex())
+    contribution, err := repository.GetContributionByID(ctx, db, contributionID)
+    if err != nil {
+        log.Printf("Error fetching contribution: %v", err)
+        if err == mongo.ErrNoDocuments {
+            return nil, fmt.Errorf("contribution not found")
+        }
+        return nil, fmt.Errorf("failed to fetch contribution: %v", err)
+    }
 
-	// Check authorization: user must be group admin, a member, or system admin
-	if contribution.GroupAdmin != userID && !isAdmin && !containsUser(contribution.YetToCollectMembers, userID) && !containsUser(contribution.AlreadyCollectedMembers, userID) {
-		return nil, fmt.Errorf("unauthorized access")
-	}
+    log.Printf("Checking authorization, isAdmin: %v", isAdmin)
+    if contribution.GroupAdmin != userID && !isAdmin && !containsUser(contribution.YetToCollectMembers, userID) && !containsUser(contribution.AlreadyCollectedMembers, userID) {
+        log.Printf("Unauthorized access for user ID: %s", userID.Hex())
+        return nil, fmt.Errorf("unauthorized access")
+    }
 
-	// Fetch wallet
-	wallet, err := repository.GetWalletByContributionID(db, contributionID)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, fmt.Errorf("wallet not found")
-		}
-		return nil, fmt.Errorf("failed to fetch wallet: %v", err)
-	}
+    log.Printf("Fetching wallet for contribution ID: %s", contributionID.Hex())
+    wallet, err := repository.GetWalletByContributionID(db, contributionID)
+    if err != nil {
+        log.Printf("Error fetching wallet: %v", err)
+        if err == mongo.ErrNoDocuments {
+            return nil, fmt.Errorf("wallet not found")
+        }
+        return nil, fmt.Errorf("failed to fetch wallet: %v", err)
+    }
 
-	// Fetch virtual account details if available
-	if wallet.VirtualAccountID != "" {
-		va, err := pg.GetVirtualAccount(ctx, wallet.VirtualAccountID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get virtual account: %v", err)
-		}
-		wallet.VirtualAccountNumber = va.AccountNumber
-		wallet.VirtualBankName = va.BankName
-	}
+    if wallet.VirtualAccountID != "" {
+        log.Printf("Fetching virtual account ID: %s", wallet.VirtualAccountID)
+        va, err := pg.GetVirtualAccount(ctx, wallet.VirtualAccountID)
+        if err != nil {
+            log.Printf("Error fetching virtual account: %v", err)
+            return nil, fmt.Errorf("failed to get virtual account: %v", err)
+        }
+        wallet.VirtualAccountNumber = va.AccountNumber
+        wallet.VirtualBankName = va.BankName
+    }
 
-	return wallet, nil
+    log.Printf("Returning wallet: %+v", wallet)
+    return wallet, nil
 }
