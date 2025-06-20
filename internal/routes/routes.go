@@ -39,6 +39,7 @@ func InitRoutes(router *gin.Engine, db *mongo.Database, pg payment.PaymentGatewa
 		authenticated.POST("/contributions/:id/payout", handlers.RecordPayoutHandler(db))
 		authenticated.GET("/notifications", handlers.GetUserNotificationsHandler(db))
 		authenticated.GET("/admin/contributions", handlers.GetAllContributionsHandler(db))
+		authenticated.GET("/contributions/groups/:user_id", handlers.GetUserContributionsByUserIdHandler(db))
 		// Collection routes
 		authenticated.POST("/contributions/:id/collections", handlers.CreateCollectionHandler(db))
 		authenticated.GET("/contributions/:id/collections", handlers.GetCollectionsHandler(db))
