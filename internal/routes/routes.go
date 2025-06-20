@@ -38,8 +38,6 @@ func InitRoutes(router *gin.Engine, db *mongo.Database, pg payment.PaymentGatewa
 		authenticated.GET("/contributions/:id/transactions", handlers.GetUserTransactionsHandler(db))
 		authenticated.GET("/notifications", handlers.GetUserNotificationsHandler(db))
 		authenticated.GET("/admin/contributions", handlers.GetAllContributionsHandler(db))
-		authenticated.GET("/contributions/groups/:user_id", handlers.GetUserContributionsByUserIdHandler(db))
-
 		// Collection routes
 		authenticated.POST("/contributions/:id/collections", handlers.CreateCollectionHandler(db))
 		authenticated.GET("/contributions/:id/collections", handlers.GetCollectionsHandler(db))
@@ -48,6 +46,8 @@ func InitRoutes(router *gin.Engine, db *mongo.Database, pg payment.PaymentGatewa
 		authenticated.GET("/approvals", handlers.GetPendingApprovalsHandler(db))
 		// Wallet routes
 		authenticated.GET("/wallet", handlers.GetUserWalletHandler(db, pg))
+		authenticated.GET("/wallet/:id", handlers.GetContributionWalletHandler(db, pg))
+		authenticated.POST("/wallet/fund", handlers.FundWalletHandler(db, pg))
 		authenticated.DELETE("/wallet", handlers.DeleteWalletHandler(db, pg))
 	}
 }

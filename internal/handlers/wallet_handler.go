@@ -6,6 +6,7 @@ import (
 
 	"github.com/Gerard-007/ajor_app/internal/models"
 	"github.com/Gerard-007/ajor_app/internal/repository"
+	"github.com/Gerard-007/ajor_app/internal/services"
 	"github.com/Gerard-007/ajor_app/pkg/payment"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -46,6 +47,79 @@ func GetUserWalletHandler(db *mongo.Database, pg payment.PaymentGateway) gin.Han
 			}
 			wallet.VirtualAccountNumber = va.AccountNumber
 			wallet.VirtualBankName = va.BankName
+		}
+
+		c.JSON(http.StatusOK, wallet)
+	}
+}
+
+func FundWalletHandler(db *mongo.Database, pg payment.PaymentGateway) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userIDStr, exists := c.Get("userID")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+			return
+		}
+		userID, err := primitive.ObjectIDFromHex(userIDStr.(string))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+			return
+		}
+
+		var input struct {
+			Amount float64 `json:"amount" binding:"required,gt=0"`
+		}
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input: " + err.Error()})
+			return
+		}
+
+		err = services.FundWallet(c.Request.Context(), db, userID, input.Amount, pg)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to fund wallet: %v", err)})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Wallet funding initiated successfully"})
+	}
+}
+
+func GetContributionWalletHandler(db *mongo.Database, pg payment.PaymentGateway) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userIDStr, exists := c.Get("userID")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+			return
+		}
+		userID, err := primitive.ObjectIDFromHex(userIDStr.(string))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+			return
+		}
+
+		isAdmin, _ := c.Get("isAdmin")
+		isAdminBool := isAdmin.(bool)
+
+		contributionIDStr := c.Param("id")
+		contributionID, err := primitive.ObjectIDFromHex(contributionIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid contribution ID"})
+			return
+		}
+
+		wallet, err := services.GetContributionWallet(c.Request.Context(), db, pg, contributionID, userID, isAdminBool)
+		if err != nil {
+			switch err.Error() {
+			case "contribution not found":
+				c.JSON(http.StatusNotFound, gin.H{"error": "Contribution not found"})
+			case "wallet not found":
+				c.JSON(http.StatusNotFound, gin.H{"error": "Wallet not found"})
+			case "unauthorized access":
+				c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized access"})
+			default:
+				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to fetch wallet: %v", err)})
+			}
+			return
 		}
 
 		c.JSON(http.StatusOK, wallet)

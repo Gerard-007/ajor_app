@@ -13,6 +13,7 @@ type PaymentMethod string
 const (
 	TransactionContribution TransactionType = "contribution"
 	TransactionPayout       TransactionType = "payout"
+	TransactionWallet       TransactionType = "wallet"
 )
 
 const (
@@ -25,6 +26,7 @@ const (
 	PaymentBankTransfer PaymentMethod = "bank_transfer"
 	PaymentMobileMoney  PaymentMethod = "mobile_money"
 	PaymentCash         PaymentMethod = "cash"
+	PaymentWallet         PaymentMethod = "wallet"
 )
 
 type Transaction struct {

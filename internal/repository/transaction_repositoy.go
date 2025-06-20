@@ -21,6 +21,24 @@ func CreateTransaction(ctx context.Context, db *mongo.Database, transaction *mod
 	return nil
 }
 
+func UpdateTransactionStatus(ctx context.Context, db *mongo.Database, transactionID primitive.ObjectID, status models.TransactionStatus) error {
+	collection := db.Collection("transactions")
+	update := bson.M{
+		"$set": bson.M{
+			"status":     status,
+			"updated_at": time.Now(),
+		},
+	}
+	result, err := collection.UpdateOne(ctx, bson.M{"_id": transactionID}, update)
+	if err != nil {
+		return err
+	}
+	if result.MatchedCount == 0 {
+		return mongo.ErrNoDocuments
+	}
+	return nil
+}
+
 func GetUserTransactions(ctx context.Context, db *mongo.Database, userID, contributionID primitive.ObjectID) ([]*models.Transaction, error) {
 	var wallet models.Wallet
 	err := db.Collection("wallets").FindOne(ctx, bson.M{"owner_id": userID, "type": models.WalletTypeUser}).Decode(&wallet)

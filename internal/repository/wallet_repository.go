@@ -47,6 +47,15 @@ func GetWalletByID(db *mongo.Database, wallet_id primitive.ObjectID) (*models.Wa
 	return &wallet, nil
 }
 
+func GetWalletByContributionID(db *mongo.Database, contributionID primitive.ObjectID) (*models.Wallet, error) {
+	var wallet models.Wallet
+	err := db.Collection("wallets").FindOne(context.TODO(), bson.M{"owner_id": contributionID, "type": models.WalletTypeContribution}).Decode(&wallet)
+	if err != nil {
+		return nil, err
+	}
+	return &wallet, nil
+}
+
 func UpdateWalletBalance(db *mongo.Database, walletID primitive.ObjectID, amount float64, isCredit bool) error {
 	filter := bson.M{"_id": walletID}
 	var update bson.M
