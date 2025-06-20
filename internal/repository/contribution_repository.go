@@ -54,6 +54,51 @@ func GetContributionByID(ctx context.Context, db *mongo.Database, id primitive.O
 	return &contribution, nil
 }
 
+func GetContributionsByUserID(ctx context.Context, db *mongo.Database, userID primitive.ObjectID) ([]*models.Contribution, error) {
+	filter := bson.M{
+		"$or": []bson.M{
+			{"yet_to_collect_members": userID},
+			{"already_collected_members": userID},
+		},
+	}
+
+	cursor, err := db.Collection("contributions").Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var contributions []*models.Contribution
+	for cursor.Next(ctx) {
+		var c models.Contribution
+		if err := cursor.Decode(&c); err != nil {
+			return nil, err
+		}
+		contributions = append(contributions, &c)
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, err
+	}
+
+	return contributions, nil
+}
+
+func GetContributionByInviteCode(ctx context.Context, db *mongo.Database, inviteCode string) (*models.Contribution, error) {
+	var contribution models.Contribution
+	err := db.Collection("contributions").FindOne(ctx, bson.M{"invite_code": inviteCode}).Decode(&contribution)
+
+	if err == mongo.ErrNoDocuments {
+		return nil, errors.New("contribution not found")
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &contribution, nil
+}
+
 func GetContributionsByUser(ctx context.Context, db *mongo.Database, userID primitive.ObjectID) ([]*models.Contribution, error) {
 	var contributions []*models.Contribution
 	cursor, err := db.Collection("contributions").Find(ctx, bson.M{
@@ -123,7 +168,7 @@ func RemoveMember(ctx context.Context, db *mongo.Database, contributionID, userI
 	filter := bson.M{"_id": contributionID}
 	update := bson.M{
 		"$pull": bson.M{
-			"yet_to_collect_members": userID,
+			"yet_to_collect_members":    userID,
 			"already_collected_members": userID,
 		},
 		"$set": bson.M{"updated_at": time.Now()},
@@ -142,7 +187,7 @@ func JoinContribution(ctx context.Context, db *mongo.Database, contributionID, u
 	filter := bson.M{"_id": contributionID}
 	update := bson.M{
 		"$addToSet": bson.M{"yet_to_collect_members": userID},
-		"$set": bson.M{"updated_at": time.Now()},
+		"$set":      bson.M{"updated_at": time.Now()},
 	}
 	result, err := db.Collection("contributions").UpdateOne(ctx, filter, update)
 	if err != nil {
@@ -157,9 +202,9 @@ func JoinContribution(ctx context.Context, db *mongo.Database, contributionID, u
 func MarkMemberCollected(ctx context.Context, db *mongo.Database, contributionID, userID primitive.ObjectID) error {
 	filter := bson.M{"_id": contributionID}
 	update := bson.M{
-		"$pull": bson.M{"yet_to_collect_members": userID},
+		"$pull":     bson.M{"yet_to_collect_members": userID},
 		"$addToSet": bson.M{"already_collected_members": userID},
-		"$set": bson.M{"updated_at": time.Now()},
+		"$set":      bson.M{"updated_at": time.Now()},
 	}
 	result, err := db.Collection("contributions").UpdateOne(ctx, filter, update)
 	if err != nil {

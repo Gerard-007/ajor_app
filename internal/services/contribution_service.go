@@ -24,9 +24,9 @@ func CreateContribution(ctx context.Context, db *mongo.Database, pg payment.Paym
 	if contribution.PenaltyAmount < 0 {
 		return errors.New("penalty amount cannot be negative")
 	}
-	if contribution.CycleCount <= 0 {
-		return errors.New("cycle count must be positive")
-	}
+	//if contribution.CycleCount <= 0 {
+	//	return errors.New("cycle count must be positive")
+	//}
 	if !isValidCycle(contribution.Cycle) || !isValidType(contribution.Type) {
 		return errors.New("invalid cycle or type")
 	}
@@ -90,6 +90,9 @@ func CreateContribution(ctx context.Context, db *mongo.Database, pg payment.Paym
 
 	return repository.CreateContribution(ctx, db, contribution)
 }
+func GetUserContributionsByUserId(ctx context.Context, db *mongo.Database, userID primitive.ObjectID) ([]*models.Contribution, error) {
+	return repository.GetContributionsByUserID(ctx, db, userID)
+}
 
 func GetContribution(ctx context.Context, db *mongo.Database, id, userID primitive.ObjectID) (*models.Contribution, error) {
 	contribution, err := repository.GetContributionByID(ctx, db, id)
@@ -120,6 +123,19 @@ func UpdateContribution(ctx context.Context, db *mongo.Database, id, userID prim
 	}
 
 	return repository.UpdateContribution(ctx, db, id, contribution)
+}
+
+func FindContributionByInviteCode(ctx context.Context, db *mongo.Database, inviteCode string) (*models.Contribution, error) {
+	if inviteCode == "" {
+		return nil, errors.New("invite code is required")
+	}
+
+	contribution, err := repository.GetContributionByInviteCode(ctx, db, inviteCode)
+	if err != nil {
+		return nil, err
+	}
+
+	return contribution, nil
 }
 
 func JoinContribution(ctx context.Context, db *mongo.Database, contributionID, userID primitive.ObjectID, inviteCode string) error {

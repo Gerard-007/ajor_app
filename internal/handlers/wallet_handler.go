@@ -32,7 +32,7 @@ func GetUserWalletHandler(db *mongo.Database, pg payment.PaymentGateway) gin.Han
 			return
 		}
 
-		wallet, err := repository.GetWalletByID(db, user.ID)
+		wallet, err := repository.GetWalletByUserID(db, user.ID)
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Wallet not found"})
 			return

@@ -29,9 +29,18 @@ func CreateWallet(db *mongo.Database, wallet *models.Wallet) error {
 	return nil
 }
 
-func GetWalletByID(db *mongo.Database, owner_id primitive.ObjectID) (*models.Wallet, error) {
+func GetWalletByUserID(db *mongo.Database, owner_id primitive.ObjectID) (*models.Wallet, error) {
 	var wallet models.Wallet
 	err := db.Collection("wallets").FindOne(context.TODO(), bson.M{"owner_id": owner_id}).Decode(&wallet)
+	if err != nil {
+		return nil, err
+	}
+	return &wallet, nil
+}
+
+func GetWalletByID(db *mongo.Database, wallet_id primitive.ObjectID) (*models.Wallet, error) {
+	var wallet models.Wallet
+	err := db.Collection("wallets").FindOne(context.TODO(), bson.M{"_id": wallet_id}).Decode(&wallet)
 	if err != nil {
 		return nil, err
 	}
@@ -62,15 +71,15 @@ func UpdateWalletBalance(db *mongo.Database, walletID primitive.ObjectID, amount
 	return nil
 }
 
-func UpdateWalletVirtualAccount(db *mongo.Database, walletID primitive.ObjectID, virtualAccountNumber, accountID, accountBank  string) error {
+func UpdateWalletVirtualAccount(db *mongo.Database, walletID primitive.ObjectID, virtualAccountNumber, accountID, accountBank string) error {
 	collection := db.Collection("wallets")
 	ctx := context.Background()
 
 	update := bson.M{
 		"$set": bson.M{
 			"virtual_account_number": virtualAccountNumber,
-			"virtual_account_id":             accountID,
-			"virtual_bank_name":           accountBank,
+			"virtual_account_id":     accountID,
+			"virtual_bank_name":      accountBank,
 			"updated_at":             time.Now(),
 		},
 	}

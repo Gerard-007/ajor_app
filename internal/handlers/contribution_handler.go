@@ -38,6 +38,24 @@ func CreateContributionHandler(db *mongo.Database, pg payment.PaymentGateway) gi
 	}
 }
 
+func GetUserContributionsByUserIdHandler(db *mongo.Database) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, err := getAuthUserID(c)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
+		}
+
+		contributions, err := services.GetUserContributions(c.Request.Context(), db, userID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get contributions"})
+			return
+		}
+
+		c.JSON(http.StatusOK, contributions)
+	}
+}
+
 func GetContributionHandler(db *mongo.Database) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, err := getAuthUserID(c)
@@ -113,34 +131,74 @@ func JoinContributionHandler(db *mongo.Database) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, err := getAuthUserID(c)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 			return
 		}
-		var request struct {
-			ContributionID string `json:"contribution_id"`
-			InviteCode     string `json:"invite_code"`
+
+		var req struct {
+			InviteCode string `json:"invite_code" binding:"required"`
 		}
-		if err := c.ShouldBindJSON(&request); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invite code is required"})
 			return
 		}
-		contributionID, err := primitive.ObjectIDFromHex(request.ContributionID)
+
+		contribution, err := services.FindContributionByInviteCode(c.Request.Context(), db, req.InviteCode)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid contribution ID"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid invite code"})
 			return
 		}
-		err = services.JoinContribution(c.Request.Context(), db, contributionID, userID, request.InviteCode)
+
+		err = services.JoinContribution(c.Request.Context(), db, contribution.ID, userID, req.InviteCode)
 		if err != nil {
-			if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "invalid invite code") || strings.Contains(err.Error(), "already found in contribution") {
-				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-				return
+			switch {
+			case strings.Contains(err.Error(), "already"):
+				c.JSON(http.StatusBadRequest, gin.H{"error": "You are already in the group"})
+			case strings.Contains(err.Error(), "not found"):
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Contribution not found"})
+			default:
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to join group"})
 			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to join contribution"})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"message": "Successfully joined contribution"})
+
+		c.JSON(http.StatusOK, gin.H{"message": "Successfully joined the group"})
 	}
 }
+
+//func JoinContributionHandler(db *mongo.Database) gin.HandlerFunc {
+//	return func(c *gin.Context) {
+//		userID, err := getAuthUserID(c)
+//		if err != nil {
+//			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+//			return
+//		}
+//		var request struct {
+//			ContributionID string `json:"contribution_id"`
+//			InviteCode     string `json:"invite_code"`
+//		}
+//		if err := c.ShouldBindJSON(&request); err != nil {
+//			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+//			return
+//		}
+//		contributionID, err := primitive.ObjectIDFromHex(request.ContributionID)
+//		if err != nil {
+//			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid contribution ID"})
+//			return
+//		}
+//		err = services.JoinContribution(c.Request.Context(), db, contributionID, userID, request.InviteCode)
+//		if err != nil {
+//			if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "invalid invite code") || strings.Contains(err.Error(), "already found in contribution") {
+//				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+//				return
+//			}
+//			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to join contribution"})
+//			return
+//		}
+//		c.JSON(http.StatusOK, gin.H{"message": "Successfully joined contribution"})
+//	}
+//}
 
 func RemoveMemberHandler(db *mongo.Database) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -185,7 +243,7 @@ func RecordContributionHandler(db *mongo.Database) gin.HandlerFunc {
 			return
 		}
 		var request struct {
-			Amount        float64             `json:"amount"`
+			Amount        float64              `json:"amount"`
 			PaymentMethod models.PaymentMethod `json:"payment_method"`
 		}
 		if err := c.ShouldBindJSON(&request); err != nil {
@@ -219,7 +277,7 @@ func RecordPayoutHandler(db *mongo.Database) gin.HandlerFunc {
 		}
 		var request struct {
 			UserID        primitive.ObjectID   `json:"user_id"`
-			Amount        float64             `json:"amount"`
+			Amount        float64              `json:"amount"`
 			PaymentMethod models.PaymentMethod `json:"payment_method"`
 		}
 		if err := c.ShouldBindJSON(&request); err != nil {

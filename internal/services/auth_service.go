@@ -34,10 +34,10 @@ func RegisterUser(db *mongo.Database, user *models.User, pg payment.PaymentGatew
 	if user.Username == "" {
 		return errors.New("username is required")
 	}
-	if user.Email == ""  {
+	if user.Email == "" {
 		return errors.New("email is required")
 	}
-	if user.Password == ""{
+	if user.Password == "" {
 		return errors.New("password is required")
 	}
 	if user.Phone == "" || len(user.Phone) < 11 {
@@ -48,8 +48,8 @@ func RegisterUser(db *mongo.Database, user *models.User, pg payment.PaymentGatew
 		return errors.New("phone must contain only digits")
 	}
 
-	if user.BVN == "" || len(user.BVN) != 10 {
-		return errors.New("BVN is required and must be 10 digits")
+	if user.BVN == "" || len(user.BVN) != 11 {
+		return errors.New("BVN is required and must be 11 digits")
 	}
 
 	// Check if BVN contains only digits
@@ -137,7 +137,6 @@ func RegisterUser(db *mongo.Database, user *models.User, pg payment.PaymentGatew
 		return err
 	}
 	log.Printf("Created wallet with ID: %s for user: %s", wallet.ID.Hex(), user.Email)
-
 
 	// Create virtual account
 	narration := fmt.Sprintf("Wallet for %s", user.Username)

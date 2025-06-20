@@ -31,10 +31,12 @@ func RecordContribution(ctx context.Context, db *mongo.Database, contributionID,
 	if err != nil {
 		return errors.New("user not found")
 	}
-	userWallet, err := repository.GetWalletByID(db, user.ID)
+	userWallet, err := repository.GetWalletByUserID(db, user.ID)
 	if err != nil {
 		return errors.New("user wallet not found")
 	}
+	fmt.Println("Wallet ID from contribution:", contribution.WalletID.Hex())
+
 	groupWallet, err := repository.GetWalletByID(db, contribution.WalletID)
 	if err != nil {
 		return errors.New("group wallet not found")
