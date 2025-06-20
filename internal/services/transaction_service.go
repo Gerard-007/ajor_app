@@ -157,6 +157,70 @@ func RecordPayout(ctx context.Context, db *mongo.Database, contributionID, userI
 	return repository.CreateNotification(ctx, db, notification)
 }
 
-func GetUserTransactions(ctx context.Context, db *mongo.Database, userID, contributionID primitive.ObjectID) ([]*models.Transaction, error) {
-	return repository.GetUserTransactions(ctx, db, userID, contributionID)
+// func GetUserTransactions(ctx context.Context, db *mongo.Database, userID, contributionID primitive.ObjectID) ([]*models.Transaction, error) {
+// 	return repository.GetUserTransactions(ctx, db, userID, contributionID)
+// }
+
+
+func GetUserTransactions(ctx context.Context, db *mongo.Database, userID primitive.ObjectID, isAdmin bool) ([]models.Transaction, error) {
+	var filter bson.M
+	if isAdmin {
+		// System admins can view all transactions
+		filter = bson.M{}
+	} else {
+		// Regular users can only view transactions involving their wallet
+		wallet, err := repository.GetWalletByUserID(db, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch wallet: %v", err)
+		}
+		filter = bson.M{
+			"$or": []bson.M{
+				{"from_wallet": wallet.ID},
+				{"to_wallet": wallet.ID},
+			},
+		}
+	}
+
+	transactions, err := repository.GetTransactions(ctx, db, filter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch transactions: %v", err)
+	}
+
+	return transactions, nil
+}
+
+func GetContributionTransactions(ctx context.Context, db *mongo.Database, contributionID, userID primitive.ObjectID, isAdmin bool) ([]models.Transaction, error) {
+	// Fetch contribution to verify authorization
+	contribution, err := repository.GetContributionByID(ctx, db, contributionID)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, fmt.Errorf("contribution not found")
+		}
+		return nil, fmt.Errorf("failed to fetch contribution: %v", err)
+	}
+
+	// Check authorization: user must be group admin, a member, or system admin
+	if contribution.GroupAdmin != userID && !isAdmin && !containsUser(contribution.YetToCollectMembers, userID) && !containsUser(contribution.AlreadyCollectedMembers, userID) {
+		return nil, fmt.Errorf("unauthorized access")
+	}
+
+	// Fetch wallet for the contribution
+	wallet, err := repository.GetWalletByContributionID(db, contributionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch wallet: %v", err)
+	}
+
+	// Fetch transactions involving the contribution's wallet
+	filter := bson.M{
+		"$or": []bson.M{
+			{"from_wallet": wallet.ID},
+			{"to_wallet": wallet.ID},
+		},
+	}
+	transactions, err := repository.GetTransactions(ctx, db, filter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch transactions: %v", err)
+	}
+
+	return transactions, nil
 }

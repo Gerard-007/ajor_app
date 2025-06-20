@@ -29,13 +29,14 @@ func InitRoutes(router *gin.Engine, db *mongo.Database, pg payment.PaymentGatewa
 		// Contribution routes
 		authenticated.POST("/contributions", handlers.CreateContributionHandler(db, pg))
 		authenticated.GET("/contributions/:id", handlers.GetContributionHandler(db))
+		authenticated.GET("/contributions/:id/wallet", handlers.GetContributionWalletHandler(db, pg))
+		authenticated.GET("/contributions/:id/transactions", handlers.GetContributionTransactionsHandler(db))
 		authenticated.GET("/contributions", handlers.GetUserContributionsHandler(db))
 		authenticated.PUT("/contributions/:id", handlers.UpdateContributionHandler(db))
 		authenticated.POST("/contributions/join", handlers.JoinContributionHandler(db))
 		authenticated.DELETE("/contributions/:id/:user_id", handlers.RemoveMemberHandler(db))
 		authenticated.POST("/contributions/:id/contribute", handlers.RecordContributionHandler(db))
 		authenticated.POST("/contributions/:id/payout", handlers.RecordPayoutHandler(db))
-		authenticated.GET("/contributions/:id/transactions", handlers.GetUserTransactionsHandler(db))
 		authenticated.GET("/notifications", handlers.GetUserNotificationsHandler(db))
 		authenticated.GET("/admin/contributions", handlers.GetAllContributionsHandler(db))
 		// Collection routes
@@ -46,8 +47,8 @@ func InitRoutes(router *gin.Engine, db *mongo.Database, pg payment.PaymentGatewa
 		authenticated.GET("/approvals", handlers.GetPendingApprovalsHandler(db))
 		// Wallet routes
 		authenticated.GET("/wallet", handlers.GetUserWalletHandler(db, pg))
-		authenticated.GET("/wallet/:id", handlers.GetContributionWalletHandler(db, pg))
 		authenticated.POST("/wallet/fund", handlers.FundWalletHandler(db, pg))
+		authenticated.GET("/wallet/transactions", handlers.GetUserTransactionsHandler(db))
 		authenticated.DELETE("/wallet", handlers.DeleteWalletHandler(db, pg))
 	}
 }
