@@ -85,7 +85,6 @@ func FundWalletHandler(db *mongo.Database, pg payment.PaymentGateway) gin.Handle
 	}
 }
 
-
 func GetContributionWalletHandler(db *mongo.Database, pg payment.PaymentGateway) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Extract and validate userID from context
@@ -142,13 +141,13 @@ func GetContributionWalletHandler(db *mongo.Database, pg payment.PaymentGateway)
 			case "unauthorized access":
 				c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized access"})
 			default:
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch wallet"})
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch wallet: " + err.Error()})
 			}
 			return
 		}
 
 		// Return wallet as JSON
-		log.Printf("Successfully fetched wallet for contribution %s", contributionID.Hex())
+		log.Printf("Successfully fetched wallet for contribution %s", contributionIDStr)
 		c.JSON(http.StatusOK, wallet)
 	}
 }
