@@ -6,20 +6,14 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-type NotificationType string
-
-const (
-	NotificationInfo    NotificationType = "info"
-	NotificationWarning NotificationType = "warning"
-	NotificationError   NotificationType = "error"
-)
-
 type Notification struct {
-	ID             primitive.ObjectID `json:"id" bson:"_id,omitempty"`
-	UserID         primitive.ObjectID `json:"user_id" bson:"user_id"`
-	ContributionID primitive.ObjectID `json:"contribution_id" bson:"contribution_id,omitempty"`
-	Message        string             `json:"message" bson:"message"`
-	Type           NotificationType   `json:"type" bson:"type"`
-	Read           bool               `json:"read" bson:"read"`
-	CreatedAt      time.Time          `json:"created_at" bson:"created_at"`
+	ID         primitive.ObjectID     `bson:"_id,omitempty" json:"id"`
+	UserID     primitive.ObjectID     `bson:"user_id" json:"user_id"`
+	Type       string                 `bson:"type" json:"type"`
+	Title      string                 `bson:"title" json:"title"`
+	Message    string                 `bson:"message" json:"message"`
+	Read       bool                   `bson:"read" json:"read"`
+	CreatedAt  time.Time              `bson:"created_at" json:"created_at"`
+	ActionLink string                 `bson:"action_link,omitempty" json:"action_link,omitempty"`
+	Meta       map[string]interface{} `bson:"meta,omitempty" json:"meta,omitempty"`
 }

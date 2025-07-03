@@ -12,7 +12,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func CreateCollection(ctx context.Context, db *mongo.Database, contributionID, collectorID, groupAdminID primitive.ObjectID, collectionDate *time.Time) error {
+func CreateCollection(ctx context.Context, db *mongo.Database, notificationService *NotificationService, contributionID, collectorID, groupAdminID primitive.ObjectID, collectionDate *time.Time) error {
 	contribution, err := repository.GetContributionByID(ctx, db, contributionID)
 	if err != nil {
 		return err
@@ -44,13 +44,14 @@ func CreateCollection(ctx context.Context, db *mongo.Database, contributionID, c
 		return err
 	}
 
-	notification := &models.Notification{
-		UserID:         collectorID,
-		ContributionID: contributionID,
-		Message:        fmt.Sprintf("You are scheduled to collect for group: %s on %s", contribution.Name, finalCollectionDate.Format("2006-01-02")),
-		Type:           models.NotificationInfo,
+	n := &models.Notification{
+		UserID:  collectorID,
+		Type:    "collection_scheduled",
+		Title:   "Collection Scheduled",
+		Message: fmt.Sprintf("You are scheduled to collect for group: %s on %s", contribution.Name, finalCollectionDate.Format("2006-01-02")),
+		Meta:    map[string]interface{}{ "group": contribution.Name, "date": finalCollectionDate.Format("2006-01-02") },
 	}
-	return repository.CreateNotification(ctx, db, notification)
+	return notificationService.Create(ctx, n)
 }
 
 func GetCollections(ctx context.Context, db *mongo.Database, contributionID, userID primitive.ObjectID) ([]*models.Collection, error) {

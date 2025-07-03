@@ -11,7 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func ApprovePayoutHandler(db *mongo.Database) gin.HandlerFunc {
+func ApprovePayoutHandler(db *mongo.Database, notifService *services.NotificationService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		approverID, err := getAuthUserID(c)
 		if err != nil {
@@ -30,7 +30,7 @@ func ApprovePayoutHandler(db *mongo.Database) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 			return
 		}
-		err = services.ApprovePayout(c.Request.Context(), db, approvalID, approverID, request.Approve)
+		err = services.ApprovePayout(c.Request.Context(), db, notifService, approvalID, approverID, request.Approve)
 		if err != nil {
 			if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "unauthorized") || strings.Contains(err.Error(), "already processed") {
 				c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})

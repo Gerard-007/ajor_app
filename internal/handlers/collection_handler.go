@@ -11,7 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func CreateCollectionHandler(db *mongo.Database) gin.HandlerFunc {
+func CreateCollectionHandler(db *mongo.Database, notifService *services.NotificationService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		groupAdminID, err := getAuthUserID(c)
 		if err != nil {
@@ -36,7 +36,7 @@ func CreateCollectionHandler(db *mongo.Database) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid collector ID"})
 			return
 		}
-		err = services.CreateCollection(c.Request.Context(), db, contributionID, collectorID, groupAdminID, request.CollectionDate)
+		err = services.CreateCollection(c.Request.Context(), db, notifService, contributionID, collectorID, groupAdminID, request.CollectionDate)
 		if err != nil {
 			if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "only group admin") || strings.Contains(err.Error(), "collector not in contribution") {
 				c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})

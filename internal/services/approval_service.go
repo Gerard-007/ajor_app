@@ -13,7 +13,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func ApprovePayout(ctx context.Context, db *mongo.Database, approvalID, approverID primitive.ObjectID, approve bool) error {
+func ApprovePayout(ctx context.Context, db *mongo.Database, notificationService *NotificationService, approvalID, approverID primitive.ObjectID, approve bool) error {
 	var approval models.Approval
 	err := db.Collection("approvals").FindOne(ctx, bson.M{"_id": approvalID}).Decode(&approval)
 	if err != nil {
@@ -82,13 +82,14 @@ func ApprovePayout(ctx context.Context, db *mongo.Database, approvalID, approver
 		}
 
 		// Notify user
-		notification := &models.Notification{
-			UserID:         transaction.ToWallet,
-			ContributionID: approval.ContributionID,
-			Message:        fmt.Sprintf("Payout of %.2f approved for contribution", transaction.Amount),
-			Type:           models.NotificationInfo,
+		n := &models.Notification{
+			UserID:  transaction.ToWallet,
+			Type:    "payout_approved",
+			Title:   "Payout Approved",
+			Message: fmt.Sprintf("Payout of %.2f approved for contribution", transaction.Amount),
+			Meta:    map[string]interface{}{ "amount": transaction.Amount },
 		}
-		return repository.CreateNotification(ctx, db, notification)
+		return notificationService.Create(ctx, n)
 	}
 
 	return nil

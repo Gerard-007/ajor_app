@@ -127,30 +127,26 @@ func UpdateContributionHandler(db *mongo.Database) gin.HandlerFunc {
 	}
 }
 
-func JoinContributionHandler(db *mongo.Database) gin.HandlerFunc {
+func JoinContributionHandler(db *mongo.Database, notifService *services.NotificationService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, err := getAuthUserID(c)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 			return
 		}
-
 		var req struct {
 			InviteCode string `json:"invite_code" binding:"required"`
 		}
-
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invite code is required"})
 			return
 		}
-
 		contribution, err := services.FindContributionByInviteCode(c.Request.Context(), db, req.InviteCode)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid invite code"})
 			return
 		}
-
-		err = services.JoinContribution(c.Request.Context(), db, contribution.ID, userID, req.InviteCode)
+		err = services.JoinContribution(c.Request.Context(), db, notifService, contribution.ID, userID, req.InviteCode)
 		if err != nil {
 			switch {
 			case strings.Contains(err.Error(), "already"):
@@ -162,45 +158,11 @@ func JoinContributionHandler(db *mongo.Database) gin.HandlerFunc {
 			}
 			return
 		}
-
 		c.JSON(http.StatusOK, gin.H{"message": "Successfully joined the group"})
 	}
 }
 
-//func JoinContributionHandler(db *mongo.Database) gin.HandlerFunc {
-//	return func(c *gin.Context) {
-//		userID, err := getAuthUserID(c)
-//		if err != nil {
-//			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-//			return
-//		}
-//		var request struct {
-//			ContributionID string `json:"contribution_id"`
-//			InviteCode     string `json:"invite_code"`
-//		}
-//		if err := c.ShouldBindJSON(&request); err != nil {
-//			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-//			return
-//		}
-//		contributionID, err := primitive.ObjectIDFromHex(request.ContributionID)
-//		if err != nil {
-//			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid contribution ID"})
-//			return
-//		}
-//		err = services.JoinContribution(c.Request.Context(), db, contributionID, userID, request.InviteCode)
-//		if err != nil {
-//			if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "invalid invite code") || strings.Contains(err.Error(), "already found in contribution") {
-//				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-//				return
-//			}
-//			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to join contribution"})
-//			return
-//		}
-//		c.JSON(http.StatusOK, gin.H{"message": "Successfully joined contribution"})
-//	}
-//}
-
-func RemoveMemberHandler(db *mongo.Database) gin.HandlerFunc {
+func RemoveMemberHandler(db *mongo.Database, notifService *services.NotificationService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		groupAdminID, err := getAuthUserID(c)
 		if err != nil {
@@ -217,7 +179,7 @@ func RemoveMemberHandler(db *mongo.Database) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 			return
 		}
-		err = services.RemoveMember(c.Request.Context(), db, contributionID, userID, groupAdminID)
+		err = services.RemoveMember(c.Request.Context(), db, notifService, contributionID, userID, groupAdminID)
 		if err != nil {
 			if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "only group admin") {
 				c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
@@ -230,7 +192,7 @@ func RemoveMemberHandler(db *mongo.Database) gin.HandlerFunc {
 	}
 }
 
-func RecordContributionHandler(db *mongo.Database) gin.HandlerFunc {
+func RecordContributionHandler(db *mongo.Database, notifService *services.NotificationService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, err := getAuthUserID(c)
 		if err != nil {
@@ -250,7 +212,7 @@ func RecordContributionHandler(db *mongo.Database) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 			return
 		}
-		err = services.RecordContribution(c.Request.Context(), db, contributionID, userID, request.Amount, request.PaymentMethod)
+		err = services.RecordContribution(c.Request.Context(), db, notifService, contributionID, userID, request.Amount, request.PaymentMethod)
 		if err != nil {
 			if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "amount mismatch") || strings.Contains(err.Error(), "insufficient balance") {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -263,7 +225,7 @@ func RecordContributionHandler(db *mongo.Database) gin.HandlerFunc {
 	}
 }
 
-func RecordPayoutHandler(db *mongo.Database) gin.HandlerFunc {
+func RecordPayoutHandler(db *mongo.Database, notifService *services.NotificationService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		groupAdminID, err := getAuthUserID(c)
 		if err != nil {
@@ -284,7 +246,7 @@ func RecordPayoutHandler(db *mongo.Database) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 			return
 		}
-		err = services.RecordPayout(c.Request.Context(), db, contributionID, request.UserID, groupAdminID, request.Amount, request.PaymentMethod)
+		err = services.RecordPayout(c.Request.Context(), db, notifService, contributionID, request.UserID, groupAdminID, request.Amount, request.PaymentMethod)
 		if err != nil {
 			if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "only group admin") || strings.Contains(err.Error(), "insufficient balance") {
 				c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})

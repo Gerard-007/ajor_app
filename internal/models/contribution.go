@@ -35,6 +35,8 @@ type Contribution struct {
 	YetToCollectMembers     []primitive.ObjectID `json:"yet_to_collect_members" bson:"yet_to_collect_members"`
 	AlreadyCollectedMembers []primitive.ObjectID `json:"already_collected_members" bson:"already_collected_members"`
 	GroupAdmin              primitive.ObjectID   `json:"group_admin" bson:"group_admin"`
+	AdminUsername           string               `json:"admin_username" bson:"admin_username"`
+	MemberUsernames         map[primitive.ObjectID]string `json:"member_usernames" bson:"member_usernames"`
 	WalletID                primitive.ObjectID   `json:"wallet_id" bson:"wallet_id"`
 	InviteCode              string               `json:"invite_code" bson:"invite_code"`
 	CreatedAt               time.Time            `json:"created_at" bson:"created_at"`

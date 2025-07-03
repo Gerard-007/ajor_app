@@ -215,3 +215,13 @@ func MarkMemberCollected(ctx context.Context, db *mongo.Database, contributionID
 	}
 	return nil
 }
+
+func UpdateContributionMemberUsernames(ctx context.Context, db *mongo.Database, contributionID primitive.ObjectID, memberUsernames map[primitive.ObjectID]string) error {
+	collection := db.Collection("contributions")
+	_, err := collection.UpdateOne(
+		ctx,
+		bson.M{"_id": contributionID},
+		bson.M{"$set": bson.M{"member_usernames": memberUsernames}},
+	)
+	return err
+}

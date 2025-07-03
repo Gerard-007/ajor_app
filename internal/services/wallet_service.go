@@ -55,6 +55,7 @@ func FundWallet(ctx context.Context, db *mongo.Database, userID primitive.Object
 		PaymentMethod: models.PaymentBankTransfer,
 		Status:        models.StatusPending,
 		ContributionID: primitive.ObjectID{},
+		TxRef:         txRef,
 	}
 	if err := repository.CreateTransaction(ctx, db, transaction); err != nil {
 		return fmt.Errorf("failed to create transaction: %v", err)

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/Gerard-007/ajor_app/pkg/payment"
 	"github.com/Gerard-007/ajor_app/pkg/utils"
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -24,8 +26,8 @@ func RegisterHandler(db *mongo.Database, pg payment.PaymentGateway) gin.HandlerF
 		}
 		log.Printf("Bound user: %+v", user) // Debug log
 
-		// Register user and get JWT token
-		token, err := services.RegisterUser(db, &user, pg)
+		// Register user and get status
+		status, err := services.RegisterUser(db, &user, pg)
 		if err != nil {
 			log.Printf("Registration error: %v", err)
 			// Map specific errors to appropriate HTTP status codes
@@ -42,11 +44,11 @@ func RegisterHandler(db *mongo.Database, pg payment.PaymentGateway) gin.HandlerF
 			return
 		}
 
-		// Return success response with token
+		// Return success response with verification message
 		log.Printf("User registered successfully with email: %s", user.Email)
 		c.JSON(http.StatusCreated, gin.H{
-			"message": "User registered successfully",
-			"token":   token,
+			"message": "User registered successfully. Please check your email to verify your account.",
+			"status": status,
 		})
 	}
 }
@@ -97,5 +99,31 @@ func LogoutHandler(db *mongo.Database) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
+	}
+}
+
+// VerifyEmailHandler handles email verification
+func VerifyEmailHandler(db *mongo.Database) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		token := c.Query("token")
+		if token == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Missing verification token"})
+			return
+		}
+		usersCollection := db.Collection("users")
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		var user models.User
+		err := usersCollection.FindOne(ctx, bson.M{"verification_token": token}).Decode(&user)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or expired verification token"})
+			return
+		}
+		_, err = usersCollection.UpdateOne(ctx, bson.M{"_id": user.ID}, bson.M{"$set": bson.M{"verified": true, "verification_token": ""}})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify user"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "Email verified successfully. You can now log in."})
 	}
 }

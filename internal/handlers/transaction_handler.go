@@ -6,6 +6,7 @@ import (
 
 	"github.com/Gerard-007/ajor_app/internal/services"
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -94,5 +95,22 @@ func GetContributionTransactionsHandler(db *mongo.Database) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, transactions)
+	}
+}
+
+func GetTransactionByIdHandler(db *mongo.Database) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		transactionID, err := primitive.ObjectIDFromHex(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid transaction ID"})
+			return
+		}
+		var transaction bson.M
+		err = db.Collection("transactions").FindOne(c, bson.M{"_id": transactionID}).Decode(&transaction)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Transaction not found"})
+			return
+		}
+		c.JSON(http.StatusOK, transaction)
 	}
 }

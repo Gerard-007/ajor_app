@@ -13,6 +13,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"time"
 )
 
 func GetUserWalletHandler(db *mongo.Database, pg payment.PaymentGateway) gin.HandlerFunc {
@@ -216,5 +217,63 @@ func DeleteWalletHandler(db *mongo.Database, pg payment.PaymentGateway) gin.Hand
 		}
 
 		c.JSON(http.StatusOK, gin.H{"message": "Wallet deleted successfully"})
+	}
+}
+
+func SimulateFundWalletHandler(db *mongo.Database) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, err := getAuthUserID(c)
+		if err != nil {
+			c.JSON(401, gin.H{"error": err.Error()})
+			return
+		}
+		var req struct {
+			Amount float64 `json:"amount"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil || req.Amount <= 0 {
+			c.JSON(400, gin.H{"error": "Invalid amount"})
+			return
+		}
+		// Find user's wallet
+		var wallet models.Wallet
+		err = db.Collection("wallets").FindOne(c, bson.M{"owner_id": userID, "type": models.WalletTypeUser}).Decode(&wallet)
+		if err != nil {
+			c.JSON(404, gin.H{"error": "Wallet not found"})
+			return
+		}
+		// Insert transaction
+		tx := models.Transaction{
+			FromWallet:     wallet.ID,
+			ToWallet:       wallet.ID,
+			Amount:         req.Amount,
+			Type:           models.TransactionContribution,
+			Date:           time.Now(),
+			PaymentMethod:  "manual",
+			Status:         models.StatusSuccess,
+		}
+		_, err = db.Collection("transactions").InsertOne(c, tx)
+		if err != nil {
+			c.JSON(500, gin.H{"error": "Failed to insert transaction"})
+			return
+		}
+		// Update wallet balance
+		_, err = db.Collection("wallets").UpdateOne(c, bson.M{"_id": wallet.ID}, bson.M{"$inc": bson.M{"balance": req.Amount}})
+		if err != nil {
+			c.JSON(500, gin.H{"error": "Failed to update wallet balance"})
+			return
+		}
+		// Create notification for wallet funding
+		notification := &models.Notification{
+			UserID:    userID,
+			Message:   fmt.Sprintf("Your wallet was funded with ₦%.2f", req.Amount),
+			Type:      "info",
+			Read:      false,
+			CreatedAt: time.Now(),
+		}
+		_, err = db.Collection("notifications").InsertOne(c, notification)
+		if err != nil {
+			log.Printf("Failed to create notification: %v", err)
+		}
+		c.JSON(200, gin.H{"message": "Wallet funded (simulated)", "amount": req.Amount})
 	}
 }

@@ -84,6 +84,15 @@ func CreateContribution(ctx context.Context, db *mongo.Database, pg payment.Paym
 
 	// Set contribution fields
 	contribution.GroupAdmin = groupAdminID
+	// Fetch admin username
+	var adminUsername string
+	userCollection := db.Collection("users")
+	var adminUser models.User
+	err = userCollection.FindOne(ctx, bson.M{"_id": groupAdminID}).Decode(&adminUser)
+	if err == nil {
+		adminUsername = adminUser.Username
+	}
+	contribution.AdminUsername = adminUsername
 	contribution.WalletID = wallet.ID
 	contribution.YetToCollectMembers = []primitive.ObjectID{groupAdminID}
 	contribution.AlreadyCollectedMembers = []primitive.ObjectID{}
@@ -138,35 +147,44 @@ func FindContributionByInviteCode(ctx context.Context, db *mongo.Database, invit
 	return contribution, nil
 }
 
-func JoinContribution(ctx context.Context, db *mongo.Database, contributionID, userID primitive.ObjectID, inviteCode string) error {
+func JoinContribution(ctx context.Context, db *mongo.Database, notificationService *NotificationService, contributionID, userID primitive.ObjectID, inviteCode string) error {
 	contribution, err := repository.GetContributionByID(ctx, db, contributionID)
 	if err != nil {
 		return err
 	}
-
 	if contribution.InviteCode != inviteCode {
 		return errors.New("invalid invite code")
 	}
-
 	if containsUser(contribution.YetToCollectMembers, userID) || containsUser(contribution.AlreadyCollectedMembers, userID) {
 		return errors.New("user already in contribution")
 	}
-
 	err = repository.JoinContribution(ctx, db, contributionID, userID)
 	if err != nil {
 		return err
 	}
-
-	notification := &models.Notification{
-		UserID:         contribution.GroupAdmin,
-		ContributionID: contributionID,
-		Message:        "A new member has joined your contribution group: " + contribution.Name,
-		Type:           models.NotificationInfo,
+	// Fetch the joining user's username and update the group
+	userCollection := db.Collection("users")
+	var user models.User
+	err = userCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&user)
+	if err == nil {
+		if contribution.MemberUsernames == nil {
+			contribution.MemberUsernames = make(map[primitive.ObjectID]string)
+		}
+		contribution.MemberUsernames[userID] = user.Username
+		_ = repository.UpdateContributionMemberUsernames(ctx, db, contributionID, contribution.MemberUsernames)
 	}
-	return repository.CreateNotification(ctx, db, notification)
+	// Use NotificationService
+	n := &models.Notification{
+		UserID:  contribution.GroupAdmin,
+		Type:    "group_member_joined",
+		Title:   "New Member Joined",
+		Message: "A new member has joined your contribution group: " + contribution.Name,
+		Meta:    map[string]interface{}{ "group": contribution.Name, "user": user.Username },
+	}
+	return notificationService.Create(ctx, n)
 }
 
-func RemoveMember(ctx context.Context, db *mongo.Database, contributionID, userID, groupAdminID primitive.ObjectID) error {
+func RemoveMember(ctx context.Context, db *mongo.Database, notificationService *NotificationService, contributionID, userID, groupAdminID primitive.ObjectID) error {
 	contribution, err := repository.GetContributionByID(ctx, db, contributionID)
 	if err != nil {
 		return err
@@ -174,19 +192,19 @@ func RemoveMember(ctx context.Context, db *mongo.Database, contributionID, userI
 	if contribution.GroupAdmin != groupAdminID {
 		return errors.New("only group admin can remove members")
 	}
-
 	err = repository.RemoveMember(ctx, db, contributionID, userID)
 	if err != nil {
 		return err
 	}
-
-	notification := &models.Notification{
-		UserID:         userID,
-		ContributionID: contributionID,
-		Message:        "You have been removed from the contribution group: " + contribution.Name,
-		Type:           models.NotificationWarning,
+	// Use NotificationService
+	n := &models.Notification{
+		UserID:  userID,
+		Type:    "removed_from_group",
+		Title:   "Removed from Group",
+		Message: "You have been removed from the contribution group: " + contribution.Name,
+		Meta:    map[string]interface{}{ "group": contribution.Name },
 	}
-	return repository.CreateNotification(ctx, db, notification)
+	return notificationService.Create(ctx, n)
 }
 
 func isValidCycle(cycle models.ContributionCycle) bool {

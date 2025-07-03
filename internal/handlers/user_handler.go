@@ -5,8 +5,11 @@ import (
 
 	"github.com/Gerard-007/ajor_app/internal/services"
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"golang.org/x/crypto/bcrypt"
+	"github.com/Gerard-007/ajor_app/internal/models"
 )
 
 func GetUserByIdHandler(db *mongo.Database) gin.HandlerFunc {
@@ -171,5 +174,48 @@ func DeleteUserHandler(db *mongo.Database) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, gin.H{"message": "User and profile deleted successfully"})
+	}
+}
+
+func ChangePasswordHandler(db *mongo.Database) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, err := getAuthUserID(c)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
+		}
+		var req struct {
+			CurrentPassword string `json:"current_password"`
+			NewPassword     string `json:"new_password"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+		if len(req.NewPassword) < 8 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "New password must be at least 8 characters"})
+			return
+		}
+		var user models.User
+		err = db.Collection("users").FindOne(c, bson.M{"_id": userID}).Decode(&user)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "User not found"})
+			return
+		}
+		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.CurrentPassword)); err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Current password is incorrect"})
+			return
+		}
+		hash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+			return
+		}
+		_, err = db.Collection("users").UpdateOne(c, bson.M{"_id": userID}, bson.M{"$set": bson.M{"password": string(hash)}})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update password"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "Password changed successfully"})
 	}
 }

@@ -89,3 +89,12 @@ func GetTransactions(ctx context.Context, db *mongo.Database, filter bson.M) ([]
 
 	return transactions, nil
 }
+
+func GetTransactionByTxRef(ctx context.Context, db *mongo.Database, txRef string) (*models.Transaction, error) {
+	var transaction models.Transaction
+	err := db.Collection("transactions").FindOne(ctx, bson.M{"tx_ref": txRef}).Decode(&transaction)
+	if err != nil {
+		return nil, err
+	}
+	return &transaction, nil
+}

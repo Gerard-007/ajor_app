@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/Gerard-007/ajor_app/internal/models"
@@ -21,6 +23,9 @@ import (
 
 func RegisterUser(db *mongo.Database, user *models.User, pg payment.PaymentGateway) (string, error) {
 	usersCollection := db.Collection("users")
+
+	// Make email case-insensitive
+	user.Email = strings.ToLower(user.Email)
 
 	// Generate username from email if not provided
 	if user.Username == "" {
@@ -41,6 +46,14 @@ func RegisterUser(db *mongo.Database, user *models.User, pg payment.PaymentGatew
 	}
 	if user.Password == "" {
 		return "", errors.New("password is required")
+	}
+	// Industry standard password validation
+	if len(user.Password) < 8 ||
+		!strings.ContainsAny(user.Password, "ABCDEFGHIJKLMNOPQRSTUVWXYZ") ||
+		!strings.ContainsAny(user.Password, "abcdefghijklmnopqrstuvwxyz") ||
+		!strings.ContainsAny(user.Password, "0123456789") ||
+		!strings.ContainsAny(user.Password, "!@#$%^&*()-_=+[]{}|;:',.<>?/`~\"") {
+		return "", errors.New("password must be at least 8 characters and include uppercase, lowercase, digit, and special character")
 	}
 	if user.Phone == "" || len(user.Phone) < 11 {
 		return "", errors.New("phone is required and must be at least 11 digits")
@@ -175,22 +188,33 @@ func RegisterUser(db *mongo.Database, user *models.User, pg payment.PaymentGatew
 		return "", fmt.Errorf("failed to update wallet with virtual account: %v", err)
 	}
 
-	// Generate JWT token for immediate login
-	token, err := utils.GenerateToken(user.Username, user.Email, user.ID, user.IsAdmin)
+	// After wallet and virtual account creation
+	// Generate verification token
+	verificationToken := primitive.NewObjectID().Hex() + fmt.Sprintf("-%d", time.Now().UnixNano())
+	user.Verified = false
+	user.VerificationToken = verificationToken
+	_, err = usersCollection.UpdateOne(ctx, bson.M{"_id": user.ID}, bson.M{"$set": bson.M{"verified": false, "verification_token": verificationToken}})
 	if err != nil {
-		log.Printf("Error generating JWT for user %s: %v", user.Email, err)
-		// Clean up user, profile, and wallet
-		usersCollection.DeleteOne(ctx, bson.M{"_id": user.ID})
-		db.Collection("profiles").DeleteOne(ctx, bson.M{"user_id": user.ID})
-		db.Collection("wallets").DeleteOne(ctx, bson.M{"_id": wallet.ID})
-		return "", fmt.Errorf("failed to generate token: %v", err)
+		log.Printf("Failed to save verification token: %v", err)
+		return "", err
 	}
-
-	log.Printf("User registered and logged in successfully: %s", user.Email)
-	return token, nil
+	// Send verification email
+	verifyURL := os.Getenv("APP_BASE_URL") + "/verify-email?token=" + verificationToken
+	subject := "Verify your email address"
+	body := "<p>Welcome to AJOR App!</p><p>Please verify your email by clicking the link below:</p>" +
+		"<p><a href='" + verifyURL + "'>Verify Email</a></p>"
+	err = utils.SendEmail(user.Email, subject, body)
+	if err != nil {
+		log.Printf("Failed to send verification email: %v", err)
+		return "", err
+	}
+	log.Printf("Verification email sent to %s", user.Email)
+	return "verify", nil
 }
 
 func LoginUser(db *mongo.Collection, email, password string) (string, error) {
+	// Make email case-insensitive
+	email = strings.ToLower(email)
 	// Find the user by email
 	user, err := repository.GetUserByEmail(db, email)
 	if err != nil {
@@ -204,6 +228,11 @@ func LoginUser(db *mongo.Collection, email, password string) (string, error) {
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	if err != nil {
 		return "", errors.New("invalid credentials")
+	}
+
+	// Block unverified users
+	if !user.Verified {
+		return "", errors.New("Please verify your email before logging in.")
 	}
 
 	// Generate JWT token

@@ -7,12 +7,13 @@ import (
 
 	"github.com/Gerard-007/ajor_app/internal/models"
 	"github.com/Gerard-007/ajor_app/internal/repository"
+	"github.com/Gerard-007/ajor_app/internal/services"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 // ProcessCollections checks for collections due today and processes them (e.g., sends notifications).
-func ProcessCollections(db *mongo.Database) error {
+func ProcessCollections(db *mongo.Database, notificationService *services.NotificationService) error {
 	ctx := context.Background()
 	collectionColl := db.Collection("collections")
 
@@ -46,15 +47,15 @@ func ProcessCollections(db *mongo.Database) error {
 			continue
 		}
 
-		// Example: Send notification to collector
-		notification := &models.Notification{
-			UserID:         collection.Collector,
-			ContributionID: collection.ContributionID,
-			Message:        "Reminder: Collection due today for group: " + contribution.Name,
-			Type:           models.NotificationInfo,
-			CreatedAt:      time.Now(),
+		// Use NotificationService
+		n := &models.Notification{
+			UserID:  collection.Collector,
+			Type:    "collection_due",
+			Title:   "Collection Due Today",
+			Message: "Reminder: Collection due today for group: " + contribution.Name,
+			Meta:    map[string]interface{}{ "group": contribution.Name, "date": today.Format("2006-01-02") },
 		}
-		if err := repository.CreateNotification(ctx, db, notification); err != nil {
+		if err := notificationService.Create(ctx, n); err != nil {
 			log.Printf("Failed to create notification for user %s: %v", collection.Collector.Hex(), err)
 			continue
 		}

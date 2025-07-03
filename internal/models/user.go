@@ -14,6 +14,8 @@ type User struct {
 	IsAdmin   bool               `json:"is_admin" bson:"is_admin"`
 	Phone     string             `json:"phone" bson:"phone"`
 	BVN       string             `json:"bvn" bson:"bvn,omitempty"`
+	Verified  bool               `json:"verified" bson:"verified"`
+	VerificationToken string    `json:"verification_token" bson:"verification_token"`
 	CreatedAt time.Time          `json:"created_at" bson:"created_at"`
 	UpdatedAt time.Time          `json:"updated_at" bson:"updated_at"`
 }
@@ -25,6 +27,7 @@ type UserResponse struct {
 	IsAdmin   bool               `json:"is_admin"`
 	Phone     string             `json:"phone"`
 	BVN       string             `json:"bvn"`
+	Verified  bool               `json:"verified"`
 	CreatedAt time.Time          `json:"created_at"`
 	UpdatedAt time.Time          `json:"updated_at"`
 	Profile   *Profile           `json:"profile"`

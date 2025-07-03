@@ -13,7 +13,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func RecordContribution(ctx context.Context, db *mongo.Database, contributionID, userID primitive.ObjectID, amount float64, paymentMethod models.PaymentMethod) error {
+func RecordContribution(ctx context.Context, db *mongo.Database, notificationService *NotificationService, contributionID, userID primitive.ObjectID, amount float64, paymentMethod models.PaymentMethod) error {
 	contribution, err := repository.GetContributionByID(ctx, db, contributionID)
 	if err != nil {
 		return err
@@ -74,19 +74,34 @@ func RecordContribution(ctx context.Context, db *mongo.Database, contributionID,
 		return err
 	}
 
+	// After successful transaction and before the late check
+	n := &models.Notification{
+		UserID:  userID,
+		Type:    "group_contribution",
+		Title:   "Group Contribution",
+		Message: "You contributed to group " + contribution.Name,
+		Meta:    map[string]interface{}{ "group": contribution.Name, "amount": amount },
+		ActionLink: "/ajo/groupTransactions?groupName=" + contribution.Name,
+	}
+	err = notificationService.Create(ctx, n)
+	if err != nil {
+		return err
+	}
+
 	if time.Now().After(contribution.CollectionDeadline) {
-		notification := &models.Notification{
-			UserID:         userID,
-			ContributionID: contributionID,
-			Message:        fmt.Sprintf("Late contribution recorded. Penalty applied: %.2f", contribution.PenaltyAmount),
-			Type:           models.NotificationWarning,
+		n := &models.Notification{
+			UserID:  userID,
+			Type:    "late_contribution",
+			Title:   "Late Contribution",
+			Message: fmt.Sprintf("Late contribution recorded. Penalty applied: %.2f", contribution.PenaltyAmount),
+			Meta:    map[string]interface{}{ "penalty": contribution.PenaltyAmount, "group": contribution.Name },
 		}
-		return repository.CreateNotification(ctx, db, notification)
+		return notificationService.Create(ctx, n)
 	}
 	return nil
 }
 
-func RecordPayout(ctx context.Context, db *mongo.Database, contributionID, userID, groupAdminID primitive.ObjectID, amount float64, paymentMethod models.PaymentMethod) error {
+func RecordPayout(ctx context.Context, db *mongo.Database, notificationService *NotificationService, contributionID, userID, groupAdminID primitive.ObjectID, amount float64, paymentMethod models.PaymentMethod) error {
 	contribution, err := repository.GetContributionByID(ctx, db, contributionID)
 	if err != nil {
 		return err
@@ -148,13 +163,14 @@ func RecordPayout(ctx context.Context, db *mongo.Database, contributionID, userI
 		return err
 	}
 
-	notification := &models.Notification{
-		UserID:         userID,
-		ContributionID: contributionID,
-		Message:        fmt.Sprintf("Payout of %.2f requested for contribution: %s", amount, contribution.Name),
-		Type:           models.NotificationInfo,
+	n := &models.Notification{
+		UserID:  userID,
+		Type:    "payout_requested",
+		Title:   "Payout Requested",
+		Message: fmt.Sprintf("Payout of %.2f requested for contribution: %s", amount, contribution.Name),
+		Meta:    map[string]interface{}{ "amount": amount, "group": contribution.Name },
 	}
-	return repository.CreateNotification(ctx, db, notification)
+	return notificationService.Create(ctx, n)
 }
 
 // func GetUserTransactions(ctx context.Context, db *mongo.Database, userID, contributionID primitive.ObjectID) ([]*models.Transaction, error) {

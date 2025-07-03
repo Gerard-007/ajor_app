@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/Gerard-007/ajor_app/internal/models"
 	"github.com/Gerard-007/ajor_app/internal/repository"
@@ -27,6 +28,7 @@ func GetUserByID(db *mongo.Database, id primitive.ObjectID) (*models.UserRespons
 		return nil, err
 	}
 
+	fmt.Println("user", user)
 	// Fetch profile
 	profilesCollection := db.Collection("profiles")
 	profile, err := repository.GetProfileByUserID(profilesCollection, id)
@@ -49,6 +51,7 @@ func GetUserByID(db *mongo.Database, id primitive.ObjectID) (*models.UserRespons
 		IsAdmin:   user.IsAdmin,
 		Phone:     user.Phone,
 		BVN:       user.BVN,
+		Verified:  user.Verified,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 		Profile:   profile,

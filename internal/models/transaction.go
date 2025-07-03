@@ -40,4 +40,5 @@ type Transaction struct {
 	Status         TransactionStatus  `json:"status" bson:"status"`
 	ContributionID primitive.ObjectID `json:"contribution_id" bson:"contribution_id"`
 	CreatedAt      time.Time          `json:"created_at" bson:"created_at"`
+	TxRef          string             `json:"tx_ref" bson:"tx_ref"`
 }

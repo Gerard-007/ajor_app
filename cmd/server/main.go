@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/robfig/cron/v3"
+	"github.com/Gerard-007/ajor_app/internal/services"
 )
 
 func main() {
@@ -48,8 +49,10 @@ func main() {
 
 	// Start cron job
 	c := cron.New()
+	notifRepo := repository.NewNotificationRepository(db)
+	notifService := services.NewNotificationService(notifRepo)
 	_, err = c.AddFunc("0 0 * * *", func() { // Runs daily at midnight
-		if err := jobs.ProcessCollections(db); err != nil {
+		if err := jobs.ProcessCollections(db, notifService); err != nil {
 			log.Printf("Error processing collections: %v", err)
 		}
 	})
@@ -61,7 +64,7 @@ func main() {
 
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080"
+		port = "8081"
 	}
 	log.Printf("Starting server on port %s", port)
 	server.Run(":" + port)

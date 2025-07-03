@@ -60,8 +60,15 @@ func GetContributionWalletByID(ctx context.Context, db *mongo.Database, walletID
 }
 
 func GetWalletByContributionID(db *mongo.Database, contributionID primitive.ObjectID) (*models.Wallet, error) {
+	// First, fetch the contribution to get its wallet_id
+	var contribution models.Contribution
+	err := db.Collection("contributions").FindOne(context.TODO(), bson.M{"_id": contributionID}).Decode(&contribution)
+	if err != nil {
+		return nil, err
+	}
+	// Now fetch the wallet by its _id
 	var wallet models.Wallet
-	err := db.Collection("wallets").FindOne(context.TODO(), bson.M{"owner_id": contributionID, "type": models.WalletTypeContribution}).Decode(&wallet)
+	err = db.Collection("wallets").FindOne(context.TODO(), bson.M{"_id": contribution.WalletID}).Decode(&wallet)
 	if err != nil {
 		return nil, err
 	}
